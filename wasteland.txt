@@ -1,0 +1,8 @@
+
+"wasteland"
+{
+	"base" 			"helix"
+	"title" 		"Wasteland"
+	"author" 		"Captain Snyder"
+	"menusystem"	"1"
+}

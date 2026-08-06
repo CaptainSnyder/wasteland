@@ -1,0 +1,9 @@
+ITEM.name = "Admin Ration"
+ITEM.model = Model("models/props_junk/watermelon01.mdl")
+ITEM.description = "An OOC item used to fully restore your needs."
+ITEM.width = 1
+ITEM.height = 1
+ITEM.useSound = "garrysmod/save_load1.wav"
+ITEM.RestoreSaturation = 100
+ITEM.RestoreSatiety = 100
+ITEM.flag = "V"

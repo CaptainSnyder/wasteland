@@ -1,0 +1,9 @@
+ITEM.name = "Large Box of 5mm"
+ITEM.height = 2
+ITEM.width = 2
+ITEM.model = "models/props/cs_office/cardboard_box03.mdl"
+ITEM.ammo = "tfa_5mm_ammo" -- type of the ammo
+ITEM.ammoAmount = 180 -- amount of the ammo
+ITEM.description = "A Box that contains 180 rounds of 5mm ammo."
+ITEM.price = 125
+ITEM.flag = "f"
