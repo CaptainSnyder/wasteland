@@ -741,7 +741,7 @@ PLUGIN.traits = {
         effectText = "doubles your harvest attempts on a creature corpse - two Survival rolls instead of one"
         -- doubles the number of independent harvest attempts (each its own Survival roll) when
         -- harvesting a creature corpse - checked directly in the corpse entity's Use function
-        -- (hunting/entities/entities/molerat_corpse.lua), not a modifier
+        -- (hunting/entities/entities/harvestable_corpse.lua), not a modifier
     },
 
     -- age traits: exact mirrors of each other, so one's advantage is the other's disadvantage.
