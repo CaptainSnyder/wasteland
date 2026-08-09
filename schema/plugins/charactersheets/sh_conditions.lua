@@ -239,6 +239,7 @@ PLUGIN.conditions = {
         regionScope = "general",
         -- being drunk counts as having your fix - withdrawal won't kick in while this is active
         suppressesWithdrawal = true,
+        effectText = "holds off Withdrawal while active",
         modifiers = {
             {type = "attribute", target = "charisma", amount = 1},
             {type = "attribute", target = "coordination", amount = -2},
@@ -255,6 +256,7 @@ PLUGIN.conditions = {
         regionScope = "general",
         -- being high counts as having your fix - withdrawal won't kick in while this is active
         suppressesWithdrawal = true,
+        effectText = "holds off Withdrawal while active",
         modifiers = {
             {type = "attribute", target = "charisma", amount = 1},
             {type = "attribute", target = "intelligence", amount = -2}
@@ -295,6 +297,7 @@ PLUGIN.conditions = {
         regionScope = "general",
         -- the cheapest way to keep withdrawal off your back for a little while
         suppressesWithdrawal = true,
+        effectText = "holds off Withdrawal while active",
         modifiers = {
             {type = "attribute", target = "luck", amount = 1}
         }

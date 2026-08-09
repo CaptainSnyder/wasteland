@@ -588,7 +588,8 @@ PLUGIN.traits = {
         id = "drugaddict",
         name = "Drug Addict",
         description = "You're hooked - go too long without something to take the edge off and your body will make you regret it.",
-        tier = 1
+        tier = 1,
+        effectText = "suffers Withdrawal (-1 to all attributes and all skills) whenever you don't have a drug in your system"
         -- no modifiers here - the drawback is entirely mechanical, see the Withdrawal condition and
         -- GetActiveConditions in sh_plugin.lua, which auto-applies Withdrawal to anyone with this trait
         -- unless they currently have a condition flagged suppressesWithdrawal (Drunk, High, etc)
@@ -649,7 +650,8 @@ PLUGIN.traits = {
         id = "religious",
         name = "Religious",
         description = "Your faith runs deep, and it shows when you pray - whatever skill you ask for guidance in, you receive twice the clarity everyone else does.",
-        tier = 2
+        tier = 2,
+        effectText = "doubles the skill bonus you get from /pray"
         -- doubles the skill bonus granted by /pray - checked directly in the Pray command, not a modifier
     },
     {
@@ -660,6 +662,7 @@ PLUGIN.traits = {
         modifiers = {
             {type = "attribute", target = "luck", amount = 1}
         },
+        effectText = "cannot use /pray at all",
         -- blocks /pray entirely - checked directly in the Pray command, not a modifier
         preventsPray = true
     },
@@ -667,7 +670,8 @@ PLUGIN.traits = {
         id = "scrapfinder",
         name = "Scrap Finder",
         description = "Even when you find just about nothing, you can still somehow manage to get a little bit of scrap.",
-        tier = 1
+        tier = 1,
+        effectText = "every scavenge or lockpick attempt also pays scrap - 1-10 when you find something, 1-20 when you don't"
         -- grants bonus ration tokens on every scavenge/lockpick attempt - checked directly in
         -- ResolveScavengeResult (scavenging/sh_plugin.lua), not a modifier
     },
@@ -675,7 +679,8 @@ PLUGIN.traits = {
         id = "poornutritionalhabits",
         name = "Poor Nutritional Habits",
         description = "You've never had a good relationship with food and water. Whatever you eat or drink just doesn't do as much for you.",
-        tier = 1
+        tier = 1,
+        effectText = "food and drink restore 25% less than normal"
         -- reduces the effect of every food/drink item by 25% - checked directly in the shared
         -- Apply function (drift-needings/items/base/sh_foods.lua), not a modifier
     },
@@ -683,7 +688,8 @@ PLUGIN.traits = {
         id = "carefulrationing",
         name = "Careful Rationing",
         description = "You know how to make the most of every meal and every drop of water.",
-        tier = 2
+        tier = 2,
+        effectText = "food and drink restore 25% more than normal"
         -- increases the effect of every food/drink item by 25% - checked directly in the shared
         -- Apply function (drift-needings/items/base/sh_foods.lua), not a modifier
     },
@@ -691,7 +697,8 @@ PLUGIN.traits = {
         id = "bigappetite",
         name = "Big Appetite",
         description = "You burn through food fast, no matter how much you eat.",
-        tier = 1
+        tier = 1,
+        effectText = "hunger drains 25% faster"
         -- hunger drains 25% faster - checked directly in PostPlayerLoadout (drift-needings/sv_hooks.lua),
         -- not a modifier
     },
@@ -699,7 +706,8 @@ PLUGIN.traits = {
         id = "smallappetite",
         name = "Small Appetite",
         description = "You've always gotten by on less food than most people need.",
-        tier = 2
+        tier = 2,
+        effectText = "hunger drains 25% slower"
         -- hunger drains 25% slower - checked directly in PostPlayerLoadout (drift-needings/sv_hooks.lua),
         -- not a modifier
     },
@@ -707,7 +715,8 @@ PLUGIN.traits = {
         id = "unquenchablethirst",
         name = "Unquenchable Thirst",
         description = "No matter how much you drink, you're parched again before long.",
-        tier = 1
+        tier = 1,
+        effectText = "thirst drains 25% faster"
         -- thirst drains 25% faster - checked directly in PostPlayerLoadout (drift-needings/sv_hooks.lua),
         -- not a modifier
     },
@@ -715,7 +724,8 @@ PLUGIN.traits = {
         id = "camelsconstitution",
         name = "Camel's Constitution",
         description = "Your body holds onto water far better than most people's.",
-        tier = 2
+        tier = 2,
+        effectText = "thirst drains 25% slower"
         -- thirst drains 25% slower - checked directly in PostPlayerLoadout (drift-needings/sv_hooks.lua),
         -- not a modifier
     },
@@ -723,7 +733,8 @@ PLUGIN.traits = {
         id = "wastenotwantnot",
         name = "Waste Not Want Not",
         description = "You never leave a kill half-stripped. Every creature you harvest, you go back over a second time to make sure you didn't miss anything.",
-        tier = 2
+        tier = 2,
+        effectText = "doubles your harvest attempts on a creature corpse - two Survival rolls instead of one"
         -- doubles the number of independent harvest attempts (each its own Survival roll) when
         -- harvesting a creature corpse - checked directly in the corpse entity's Use function
         -- (hunting/entities/entities/molerat_corpse.lua), not a modifier
@@ -848,6 +859,14 @@ PLUGIN.FormatTraitModifiers = function(trait)
 
     if (trait.disadvantageAllAttributes) then
         parts[#parts + 1] = "disadvantage on all attributes"
+    end
+
+    -- plenty of traits and conditions have their mechanics implemented in code rather than in a
+    -- modifier table (Drug Addict's Withdrawal, Scrap Finder's payout, the hunger/thirst rates, and
+    -- so on). without a written effect they produce an empty summary, and the sheet then falls back
+    -- to "This is a roleplay trait!" - which is flatly wrong for anything that does something
+    if (trait.effectText) then
+        parts[#parts + 1] = trait.effectText
     end
 
     return table.concat(parts, ", ")
