@@ -321,7 +321,7 @@ PLUGIN.conditions = {
     {
         id = "recentlytreated",
         name = "Recently Treated",
-        description = "Someone has ran /firstaid on you lately.",
+        description = "Someone has run /firstaid on you lately.",
         durationHours = 12,
         category = "health",
         regionScope = "general",
@@ -331,8 +331,8 @@ PLUGIN.conditions = {
     },
     {
         id = "recentlysprint",
-        name = "Recently Sprint",
-        description = "You have recently used /athletics",
+        name = "Recently Sprinted",
+        description = "You have recently used /athletics.",
         durationHours = 5 / 60,
         category = "health",
         regionScope = "general",
