@@ -1230,7 +1230,8 @@ PLUGIN.traits = {
         tier = 1,
         modifiers = {
             {type = "skill", target = "snipers", amount = 2},
-            {type = "skill", target = "brawling", amount = -1}
+            {type = "skill", target = "brawling", amount = -1},
+            {type = "skill", target = "melee", amount = -1}
         }
     },
     {
@@ -1239,9 +1240,9 @@ PLUGIN.traits = {
         description = "Your answer to most problems weighs forty pounds and announces its arrival from roughly a mile out.",
         tier = 1,
         modifiers = {
-            {type = "skill", target = "bigguns", amount = 2},
-            {type = "skill", target = "sneakyshit", amount = -1}
-        }
+            {type = "skill", target = "bigguns", amount = 2}
+        },
+        disadvantageSkills = {"sneakyshit"}
     },
     {
         id = "solidstateonly",
