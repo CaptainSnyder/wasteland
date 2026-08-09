@@ -645,6 +645,31 @@ local TRAIT_TIER_INFO = {
 local TRAIT_TIER_RANK = {[1] = 1, [2] = 2, [3] = 3, [0] = 4}
 
 local function BuildTraitsPage(parent, data)
+    -- created before the scroll panel: sibling docked panels stack in creation order, and a FILL
+    -- child claims everything left over, so anything docked TOP has to come first
+    if (data.isOwner) then
+        local pointsLabel = parent:Add("DLabel")
+        pointsLabel:SetFont("DermaDefaultBold")
+        pointsLabel:SetTextColor(Color(217, 179, 92))
+        pointsLabel:Dock(TOP)
+        pointsLabel:SetTall(22)
+        pointsLabel:DockMargin(10, 10, 10, 0)
+
+        local pointsText = "Trait Points: " .. (data.traitPoints or 0)
+
+        if (data.nextTraitCost) then
+            pointsText = pointsText .. string.format(
+                "   (next trait costs %d - /buytraits)", data.nextTraitCost
+            )
+        else
+            pointsText = pointsText .. string.format(
+                "   (all %d purchasable traits bought)", data.maxPurchasedTraits or 10
+            )
+        end
+
+        pointsLabel:SetText(pointsText)
+    end
+
     local scroll = vgui.Create("DScrollPanel", parent)
     scroll:Dock(FILL)
     scroll:DockMargin(10, 10, 45, 10)
@@ -709,6 +734,21 @@ local function BuildTraitsPage(parent, data)
         local tierLabelWidth = surface.GetTextSize(tierInfo.label)
         tierLabel:SetWide(tierLabelWidth + 8)
 
+        -- how they came by it: Origin Trait, Purchased Trait or Rewarded Trait. only purchased ones
+        -- push up the cost of the next purchase, so it's worth being able to see which is which
+        local sourceHeight = 0
+
+        if (trait.source) then
+            local sourceLabel = box:Add("DLabel")
+            sourceLabel:SetText(trait.source)
+            sourceLabel:SetTextColor(Color(135, 135, 135))
+            sourceLabel:Dock(TOP)
+            sourceLabel:SetTall(16)
+            sourceLabel:DockMargin(8, 0, 8, 0)
+
+            sourceHeight = 16
+        end
+
         local fullTraitDef = traitDefsByID[trait.id]
         local effectText = fullTraitDef and FormatTraitModifiers(fullTraitDef) or ""
 
@@ -727,7 +767,7 @@ local function BuildTraitsPage(parent, data)
 
         -- recalculated every layout pass so it always matches the label's real wrapped height
         box.PerformLayout = function(self, w, h)
-            self:SetTall(24 + descLabel:GetTall() + 8)
+            self:SetTall(24 + sourceHeight + descLabel:GetTall() + 8)
         end
     end
 end

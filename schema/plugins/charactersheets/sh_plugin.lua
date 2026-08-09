@@ -10,6 +10,7 @@ ix.util.Include("cl_bodydiagram.lua")
 ix.util.Include("cl_charsheet_tab.lua")
 ix.util.Include("cl_sheet.lua")
 ix.util.Include("cl_traits.lua")
+ix.util.Include("cl_buytraits.lua")
 ix.util.Include("cl_conditions.lua")
 ix.util.Include("cl_charsetup.lua")
 
@@ -18,6 +19,67 @@ local charSetupStages = PLUGIN.charSetupStages
 local skillList = PLUGIN.skills
 local skillLevelCost = PLUGIN.skillLevelCost
 local traitList = PLUGIN.traits
+-- captured at load like the rest: PLUGIN is only valid while this file is being included, so anything
+-- reaching for it at runtime would find nil
+local FormatTraitModifiers = PLUGIN.FormatTraitModifiers
+
+-- trait purchasing. buying a trait costs more the more you've already bought, on exactly the curve
+-- skills use: the Nth trait you buy costs skillLevelCost[N]. only traits actually *bought* escalate
+-- the price - origin traits from character setup and GM-rewarded ones are free of this entirely
+local MAX_PURCHASED_TRAITS = 10
+local MAX_TRAIT_POINTS = 0
+
+for i = 1, MAX_PURCHASED_TRAITS do
+    MAX_TRAIT_POINTS = MAX_TRAIT_POINTS + (skillLevelCost[i] or 0)
+end
+
+PLUGIN.maxPurchasedTraits = MAX_PURCHASED_TRAITS
+PLUGIN.maxTraitPoints = MAX_TRAIT_POINTS
+
+-- how a character came by a trait. anything with no recorded source predates this system, and is
+-- treated as an origin trait since character setup is where nearly all of them came from
+local TRAIT_SOURCE_LABELS = {
+    origin = "Origin Trait",
+    purchased = "Purchased Trait",
+    rewarded = "Rewarded Trait"
+}
+
+local function GetTraitSource(character, traitID)
+    return character:GetData("traitSources", {})[traitID] or "origin"
+end
+
+local function SetTraitSource(character, traitID, source)
+    local sources = character:GetData("traitSources", {})
+
+    sources[traitID] = source
+    character:SetData("traitSources", sources)
+end
+
+-- counted off the live trait list rather than the source table directly, so a leftover entry from a
+-- trait that was later removed can never keep inflating the price of the next purchase
+local function GetPurchasedTraitCount(character)
+    local sources = character:GetData("traitSources", {})
+    local count = 0
+
+    for _, tid in ipairs(character:GetData("traits", {})) do
+        if (sources[tid] == "purchased") then
+            count = count + 1
+        end
+    end
+
+    return count
+end
+
+-- nil once the cap is reached, meaning there is no next purchase left to put a price on
+local function GetNextTraitCost(character)
+    local purchased = GetPurchasedTraitCount(character)
+
+    if (purchased >= MAX_PURCHASED_TRAITS) then
+        return nil
+    end
+
+    return skillLevelCost[purchased + 1]
+end
 local conditionList = PLUGIN.conditions
 local bodyRegions = PLUGIN.bodyRegions
 local bleedingTiers = PLUGIN.bleedingTiers
@@ -264,6 +326,8 @@ if (SERVER) then
     util.AddNetworkString("ixCharSheetEditRelationship")
     util.AddNetworkString("ixCharSheetDeleteRelationship")
     util.AddNetworkString("ixOpenTraitList")
+    util.AddNetworkString("ixOpenTraitPurchase")
+    util.AddNetworkString("ixCharSheetBuyTrait")
     util.AddNetworkString("ixOpenConditionList")
     util.AddNetworkString("ixOpenHealthConditionList")
     util.AddNetworkString("ixOpenCharSetup")
@@ -1224,6 +1288,16 @@ if (SERVER) then
 
         character:SetData("skills", skills)
         character:SetData("traits", traits)
+
+        -- everything the setup wizard hands out is an origin trait, so none of it counts toward the
+        -- escalating cost of *bought* traits later on
+        local traitSources = character:GetData("traitSources", {})
+
+        for _, tid in ipairs(traits) do
+            traitSources[tid] = traitSources[tid] or "origin"
+        end
+
+        character:SetData("traitSources", traitSources)
         character:SetData("charSetupDone", true)
 
         client:Notify("Character setup complete!")
@@ -1254,7 +1328,100 @@ ix.command.Add("CharGiveTraits", {
         table.insert(traits, trait.id)
         target:SetData("traits", traits)
 
+        -- anything an admin hands out is a reward, so it never counts toward purchase escalation
+        SetTraitSource(target, trait.id, "rewarded")
+
         return string.format("Gave %s the '%s' trait.", target:GetName(), trait.name)
+    end
+})
+
+-- builds the purchase window's contents: every tier 1 trait, whether they already have it, and what
+-- the next purchase would cost. also used to refresh the window in place after a successful buy
+if (SERVER) then
+    function SendTraitPurchaseList(client, character)
+        local owned = {}
+
+        for _, tid in ipairs(character:GetData("traits", {})) do
+            owned[tid] = true
+        end
+
+        local available = {}
+
+        for _, trait in ipairs(traitList) do
+            if ((trait.tier or 1) == 1) then
+                available[#available + 1] = {
+                    id = trait.id,
+                    name = trait.name,
+                    description = trait.description,
+                    effect = FormatTraitModifiers(trait),
+                    owned = owned[trait.id] == true
+                }
+            end
+        end
+
+        table.SortByMember(available, "name", true)
+
+        net.Start("ixOpenTraitPurchase")
+            net.WriteTable({
+                traits = available,
+                points = character:GetData("traitPoints", 1),
+                purchased = GetPurchasedTraitCount(character),
+                maxPurchased = MAX_PURCHASED_TRAITS,
+                nextCost = GetNextTraitCost(character)
+            })
+        net.Send(client)
+    end
+end
+
+ix.command.Add("BuyTraits", {
+    description = "Opens the Tier 1 trait shop, where trait points can be spent.",
+    OnRun = function(self, client)
+        local character = client:GetCharacter()
+
+        if (!character) then
+            return
+        end
+
+        SendTraitPurchaseList(client, character)
+    end
+})
+
+-- takes a target as well as an amount, unlike the other trait commands' shorthand - an admin reward
+-- that could only ever be applied to yourself wouldn't be much use for rewarding a player
+ix.command.Add("GiveTraitPoint", {
+    description = "Gives a character trait points, up to the maximum they could ever spend.",
+    privilege = "Manage Character Traits",
+    adminOnly = true,
+    arguments = {
+        ix.type.character,
+        ix.type.number
+    },
+    OnRun = function(self, client, target, amount)
+        amount = math.Clamp(math.floor(amount or 0), 1, MAX_TRAIT_POINTS)
+
+        local current = target:GetData("traitPoints", 1)
+        local newTotal = math.min(current + amount, MAX_TRAIT_POINTS)
+
+        if (newTotal == current) then
+            return string.format(
+                "%s already has the maximum of %d trait points.", target:GetName(), MAX_TRAIT_POINTS
+            )
+        end
+
+        target:SetData("traitPoints", newTotal)
+
+        local granted = newTotal - current
+        local targetPlayer = target:GetPlayer()
+
+        if (IsValid(targetPlayer)) then
+            targetPlayer:Notify(string.format(
+                "You've been given %d trait point(s). You now have %d.", granted, newTotal
+            ))
+        end
+
+        return string.format(
+            "Gave %s %d trait point(s). They now have %d.", target:GetName(), granted, newTotal
+        )
     end
 })
 
@@ -1279,6 +1446,14 @@ ix.command.Add("CharRemoveTrait", {
             if (tid == trait.id) then
                 table.remove(traits, i)
                 target:SetData("traits", traits)
+
+                -- clear the source too. if this was a purchased trait, that also drops the purchased
+                -- count, so their next purchase falls back to the cheaper price - which is the right
+                -- outcome, since they no longer have the trait they paid for
+                local sources = target:GetData("traitSources", {})
+
+                sources[trait.id] = nil
+                target:SetData("traitSources", sources)
 
                 return string.format("Removed the '%s' trait from %s.", trait.name, target:GetName())
             end
@@ -1309,6 +1484,10 @@ local function SendCharacterSheet(client, target)
     if (isOwner) then
         data.privateNotes = target:GetData("privateNotes", "")
         data.skillPoints = target:GetData("skillPoints", 8)
+        data.traitPoints = target:GetData("traitPoints", 1)
+        data.purchasedTraits = GetPurchasedTraitCount(target)
+        data.maxPurchasedTraits = MAX_PURCHASED_TRAITS
+        data.nextTraitCost = GetNextTraitCost(target)
     end
 
     -- relationships are public (visible to anyone viewing the sheet); only the owner sees add/edit/delete controls client-side
@@ -1408,7 +1587,8 @@ local function SendCharacterSheet(client, target)
                 id = trait.id,
                 name = trait.name,
                 description = trait.description,
-                tier = trait.tier or 1
+                tier = trait.tier or 1,
+                source = TRAIT_SOURCE_LABELS[GetTraitSource(target, tid)] or TRAIT_SOURCE_LABELS.origin
             }
         end
     end
@@ -1622,6 +1802,64 @@ if (SERVER) then
         end
 
         character:SetData("relationships", relationships)
+        SendCharacterSheet(client, character)
+    end)
+
+    net.Receive("ixCharSheetBuyTrait", function(length, client)
+        local character = client:GetCharacter()
+
+        if (!character) then
+            return
+        end
+
+        local traitID = net.ReadString()
+        local trait = traitsByID[traitID]
+
+        -- every condition is re-checked here rather than trusting that the button which sent this was
+        -- one the client was actually shown
+        if (!trait or (trait.tier or 1) != 1) then
+            client:Notify("Only Tier 1 traits can be purchased.")
+            return
+        end
+
+        local traits = character:GetData("traits", {})
+
+        if (table.HasValue(traits, traitID)) then
+            client:Notify("You already have that trait.")
+            return
+        end
+
+        local cost = GetNextTraitCost(character)
+
+        if (!cost) then
+            client:Notify(string.format(
+                "You've already purchased the maximum of %d traits.", MAX_PURCHASED_TRAITS
+            ))
+
+            return
+        end
+
+        local points = character:GetData("traitPoints", 1)
+
+        if (points < cost) then
+            client:Notify(string.format(
+                "'%s' costs %d trait point(s) and you have %d.", trait.name, cost, points
+            ))
+
+            return
+        end
+
+        table.insert(traits, traitID)
+        character:SetData("traits", traits)
+        character:SetData("traitPoints", points - cost)
+        SetTraitSource(character, traitID, "purchased")
+
+        client:Notify(string.format(
+            "You purchased '%s' for %d trait point(s).", trait.name, cost
+        ))
+
+        -- refresh both the shop (prices have gone up) and any open sheet behind it
+        SendTraitPurchaseList(client, character)
         SendCharacterSheet(client, character)
     end)
 
