@@ -1392,6 +1392,178 @@ ix.command.Add("Athletics", {
     end
 })
 
+-- forced every tick, on both realms, so the local player's own prediction ducks in lockstep with what
+-- the server is doing instead of fighting it and rubber-banding
+hook.Add("SetupMove", "ixSneakyShitForceCrouch", function(client, mv)
+    if (IsValid(client) and client:GetNWBool("ixSneaking", false)) then
+        mv:SetButtons(bit.bor(mv:GetButtons(), IN_DUCK))
+    end
+end)
+
+if (SERVER) then
+    local SNEAK_BASE_RADIUS = 300
+    local SNEAK_MIN_RADIUS = 100
+    -- a look check beats radius entirely, so it needs to reach across pretty much the whole map
+    local SNEAK_LOOK_DISTANCE = 8192
+    local SNEAK_CHECK_INTERVAL = 0.15
+    local SNEAK_BASE_SPEED_PENALTY = 0.5
+    local SNEAK_MIN_SPEED_PENALTY = 0.1
+
+    local function GetSneakLevel(character)
+        return character:GetData("skills", {})["sneakyshit"] or 0
+    end
+
+    -- same shape as Rally's radius: untrained gets the full base radius, investment shrinks it down
+    -- toward the floor rather than growing it, since staying hidden means being seen from less far away
+    local function GetSneakRadius(level)
+        return math.max(SNEAK_MIN_RADIUS, SNEAK_BASE_RADIUS - (level / 5) * (SNEAK_BASE_RADIUS - SNEAK_MIN_RADIUS))
+    end
+
+    -- 50% slower untrained, tapering to 10% slower at level 5 and beyond
+    local function GetSneakSpeedMultiplier(level)
+        local penalty = math.max(
+            SNEAK_MIN_SPEED_PENALTY,
+            SNEAK_BASE_SPEED_PENALTY - (level / 5) * (SNEAK_BASE_SPEED_PENALTY - SNEAK_MIN_SPEED_PENALTY)
+        )
+
+        return 1 - penalty
+    end
+
+    -- true the moment anyone else could plausibly have made them: either someone's within their
+    -- shrunk-by-skill radius, or someone's crosshair is landing directly on them from anywhere at all -
+    -- a stare across an open field gives you away no matter how far off it is
+    local function IsSneakSpotted(client, radius)
+        local origin = client:GetPos()
+
+        for _, ply in ipairs(player.GetAll()) do
+            if (ply != client and IsValid(ply) and ply:Alive() and ply:GetCharacter()) then
+                if (origin:Distance(ply:GetPos()) <= radius) then
+                    return true
+                end
+
+                local eyePos = ply:GetShootPos()
+                local trace = util.TraceLine({
+                    start = eyePos,
+                    endpos = eyePos + ply:GetAimVector() * SNEAK_LOOK_DISTANCE,
+                    filter = ply,
+                    mask = MASK_SHOT
+                })
+
+                if (trace.Entity == client) then
+                    return true
+                end
+            end
+        end
+
+        return false
+    end
+
+    local function SetSneakVisible(client, visible)
+        if (client.ixSneakVisible == visible) then
+            return
+        end
+
+        client.ixSneakVisible = visible
+
+        if (visible) then
+            client:SetRenderMode(RENDERMODE_NORMAL)
+            client:SetColor(color_white)
+            client:DrawShadow(true)
+        else
+            client:SetRenderMode(RENDERMODE_TRANSALPHA)
+            client:SetColor(ColorAlpha(color_white, 0))
+            client:DrawShadow(false)
+        end
+    end
+
+    local function StopSneaking(client, message)
+        if (!IsValid(client)) then
+            return
+        end
+
+        client:SetNWBool("ixSneaking", false)
+        client.ixSneakRadius = nil
+        SetSneakVisible(client, true)
+        ResetMovementSpeed(client)
+
+        if (message) then
+            client:Notify(message)
+        end
+    end
+
+    ix.command.Add("SneakyShit", {
+        description = "Toggles Sneaky Shit stealth: forces you to crouch, slows your pace, and hides you from anyone who hasn't spotted you. Breaks the moment you fight or take a hit.",
+        OnRun = function(self, client)
+            local character = client:GetCharacter()
+
+            if (!character or !client:Alive()) then
+                return
+            end
+
+            if (client:GetNWBool("ixSneaking", false)) then
+                StopSneaking(client, "You stand up out of stealth.")
+                return
+            end
+
+            local level = GetSneakLevel(character)
+
+            client:SetNWBool("ixSneaking", true)
+            client.ixSneakRadius = GetSneakRadius(level)
+
+            local speedMultiplier = GetSneakSpeedMultiplier(level)
+            client:SetWalkSpeed(ix.config.Get("walkSpeed") * speedMultiplier)
+            client:SetRunSpeed(ix.config.Get("runSpeed") * speedMultiplier)
+
+            -- checked once immediately rather than waiting for the next tick, so there's no visible
+            -- flash of normal visibility the instant the command goes off
+            SetSneakVisible(client, IsSneakSpotted(client, client.ixSneakRadius))
+            client:Notify("You crouch low and go still, blending into your surroundings.")
+        end
+    })
+
+    -- one tick driving every sneaking player's visibility, same shape as the bleeding/hunger/thirst
+    -- ticks below, rather than a timer per player
+    timer.Create("ixSneakyShitTick", SNEAK_CHECK_INTERVAL, 0, function()
+        for _, client in ipairs(player.GetAll()) do
+            if (IsValid(client) and client:Alive() and client:GetNWBool("ixSneaking", false) and client.ixSneakRadius) then
+                SetSneakVisible(client, IsSneakSpotted(client, client.ixSneakRadius))
+            end
+        end
+    end)
+
+    -- fighting gives away your position - stealth breaks the instant you land a hit, take one, or pull
+    -- the trigger, whether or not the shot actually connects
+    hook.Add("EntityTakeDamage", "ixSneakyShitBreakOnDamage", function(target, dmgInfo)
+        if (IsValid(target) and target:IsPlayer() and target:GetNWBool("ixSneaking", false)) then
+            StopSneaking(target, "You take a hit and lose your cover.")
+        end
+
+        local attacker = dmgInfo:GetAttacker()
+
+        if (IsValid(attacker) and attacker != target and attacker:IsPlayer() and attacker:GetNWBool("ixSneaking", false)) then
+            StopSneaking(attacker, "You break cover to strike.")
+        end
+    end)
+
+    hook.Add("EntityFireBullets", "ixSneakyShitBreakOnFire", function(ent)
+        if (IsValid(ent) and ent:IsPlayer() and ent:GetNWBool("ixSneaking", false)) then
+            StopSneaking(ent, "You break cover to fire.")
+        end
+    end)
+
+    hook.Add("PlayerDeath", "ixSneakyShitBreakOnDeath", function(client)
+        if (client:GetNWBool("ixSneaking", false)) then
+            StopSneaking(client)
+        end
+    end)
+
+    hook.Add("PlayerDisconnected", "ixSneakyShitCleanup", function(client)
+        if (IsValid(client)) then
+            client:SetNWBool("ixSneaking", false)
+        end
+    end)
+end
+
 -- returns the first trait a character holds carrying the given flag, or nil. handy where the flag's
 -- value matters and not just its presence, e.g. Made for Running's athleticsBonusPercent
 local function GetTraitWithFlag(character, flag)
