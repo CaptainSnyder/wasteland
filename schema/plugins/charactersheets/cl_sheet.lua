@@ -732,24 +732,17 @@ local function BuildHealthPage(parent, data)
 
     local barContainer = parent:Add("DPanel")
     barContainer:Dock(LEFT)
-    barContainer:SetWide(40)
+    -- sized for the widest label it has to hold ("100/100" in DermaDefaultBold), not for the bar -
+    -- at the old 40px the text clipped to "93/1...". the bar keeps its original width via the margin
+    -- below, so only the label gained room
+    barContainer:SetWide(64)
     barContainer:DockMargin(0, 10, 10, 10)
     barContainer.Paint = function() end
 
     local maxHealth = (data.maxHealth and data.maxHealth > 0) and data.maxHealth or 100
     local fraction = math.Clamp((data.health or 0) / maxHealth, 0, 1)
 
-    local bar = barContainer:Add("DPanel")
-    bar:Dock(TOP)
-    bar:SetTall(180)
-    bar.Paint = function(self, w, h)
-        draw.RoundedBox(4, 0, 0, w, h, Color(10, 10, 10))
-
-        local fillHeight = h * fraction
-        surface.SetDrawColor(230, 230, 230)
-        surface.DrawRect(0, h - fillHeight, w, fillHeight)
-    end
-
+    -- created before the bar so it sits above it: sibling TOP-docked panels stack in creation order
     local hpLabel = barContainer:Add("DLabel")
     hpLabel:SetText(string.format("%d/%d", data.health or 0, maxHealth))
     hpLabel:SetFont("DermaDefaultBold")
@@ -757,7 +750,19 @@ local function BuildHealthPage(parent, data)
     hpLabel:SetContentAlignment(5)
     hpLabel:Dock(TOP)
     hpLabel:SetTall(20)
-    hpLabel:DockMargin(0, 5, 0, 0)
+    hpLabel:DockMargin(0, 0, 0, 5)
+
+    local bar = barContainer:Add("DPanel")
+    bar:Dock(TOP)
+    bar:SetTall(180)
+    bar:DockMargin(12, 0, 12, 0)
+    bar.Paint = function(self, w, h)
+        draw.RoundedBox(4, 0, 0, w, h, Color(10, 10, 10))
+
+        local fillHeight = h * fraction
+        surface.SetDrawColor(230, 230, 230)
+        surface.DrawRect(0, h - fillHeight, w, fillHeight)
+    end
 
     local healthScroll = vgui.Create("DScrollPanel", parent)
     healthScroll:Dock(FILL)
