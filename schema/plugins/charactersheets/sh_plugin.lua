@@ -1263,15 +1263,29 @@ local ATHLETICS_CRIT_PERCENT = 8
 local ATHLETICS_INJURY_DURATION = 5 * 60
 local ATHLETICS_INJURY_PENALTY = 0.25
 
--- back to the configured defaults rather than to whatever they were before the boost: those are the
--- same values PostPlayerLoadout uses, so this can't strand anyone at a modified speed
+-- forward declared because /athletics has to break stealth, and the block that defines this sits
+-- further down the file. `function StopSneaking(...)` down there assigns to this local, not a global
+local StopSneaking
+
+-- back to whatever the player's baseline currently is, rather than blindly to the configured
+-- defaults. normally that's exactly the values PostPlayerLoadout uses, so nobody gets stranded at a
+-- modified speed - but a sneaking player's baseline is their slowed one, and an expiring athletics
+-- boost or pulled muscle mustn't hand them full speed back while they're still crouched and hidden
 local function ResetMovementSpeed(client)
     if (!IsValid(client)) then
         return
     end
 
-    client:SetWalkSpeed(ix.config.Get("walkSpeed"))
-    client:SetRunSpeed(ix.config.Get("runSpeed"))
+    local walk = ix.config.Get("walkSpeed")
+    local run = ix.config.Get("runSpeed")
+
+    if (client:GetNWBool("ixSneaking", false) and client.ixSneakSpeedMultiplier) then
+        walk = walk * client.ixSneakSpeedMultiplier
+        run = run * client.ixSneakSpeedMultiplier
+    end
+
+    client:SetWalkSpeed(walk)
+    client:SetRunSpeed(run)
 end
 
 ix.command.Add("Athletics", {
@@ -1292,6 +1306,13 @@ ix.command.Add("Athletics", {
             ))
 
             return
+        end
+
+        -- breaking into a sprint is the opposite of keeping your head down. done before the roll, so
+        -- even a botched attempt gives you away - and after the cooldown check, so a command that
+        -- didn't do anything doesn't cost you your cover
+        if (StopSneaking and client:GetNWBool("ixSneaking", false)) then
+            StopSneaking(client, "You break cover to move.")
         end
 
         local result, diceRoll = PerformSkillCheck(client, "athletics")
@@ -1476,13 +1497,17 @@ if (SERVER) then
         end
     end
 
-    local function StopSneaking(client, message)
+    -- assigns to the local forward declared above ResetMovementSpeed, so /athletics can reach it
+    function StopSneaking(client, message)
         if (!IsValid(client)) then
             return
         end
 
         client:SetNWBool("ixSneaking", false)
         client.ixSneakRadius = nil
+        -- cleared before the reset, so ResetMovementSpeed restores full speed rather than the
+        -- slowed baseline it would use for someone still sneaking
+        client.ixSneakSpeedMultiplier = nil
         SetSneakVisible(client, true)
         ResetMovementSpeed(client)
 
@@ -1510,9 +1535,10 @@ if (SERVER) then
             client:SetNWBool("ixSneaking", true)
             client.ixSneakRadius = GetSneakRadius(level)
 
-            local speedMultiplier = GetSneakSpeedMultiplier(level)
-            client:SetWalkSpeed(ix.config.Get("walkSpeed") * speedMultiplier)
-            client:SetRunSpeed(ix.config.Get("runSpeed") * speedMultiplier)
+            -- stored so ResetMovementSpeed knows what this player's baseline is: an athletics boost or
+            -- pulled muscle expiring mid-sneak restores the slowed speed rather than full speed
+            client.ixSneakSpeedMultiplier = GetSneakSpeedMultiplier(level)
+            ResetMovementSpeed(client)
 
             -- checked once immediately rather than waiting for the next tick, so there's no visible
             -- flash of normal visibility the instant the command goes off
