@@ -1164,6 +1164,16 @@ PLUGIN.traits = {
         doublesFirstAidBonus = true
     },
     {
+        id = "madeforrunning",
+        name = "Made for Running!",
+        description = "Long legs, light frame, and a complete absence of anything worth carrying. When you decide to move, you really move.",
+        tier = 1,
+        effectText = "adds a flat 7% to the speed gained from /athletics",
+        -- a numeric field rather than a boolean, so a future trait can grant a different amount -
+        -- read directly by the Athletics command (charactersheets/sh_plugin.lua)
+        athleticsBonusPercent = 7
+    },
+    {
         id = "holyhealer",
         name = "Holy Healer",
         description = "You pray over the wounded before you ever lay a hand on them, and you're quietly certain that's the half doing the real work. Cannot be taken alongside Atheist.",

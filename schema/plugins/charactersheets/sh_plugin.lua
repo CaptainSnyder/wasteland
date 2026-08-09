@@ -1070,6 +1070,9 @@ local FIRST_AID_FAIL_COOLDOWN = 60
 -- 10 on the total, matching the bar the scavenging and harvesting checks already use
 local FIRST_AID_SUCCESS_THRESHOLD = 10
 local FIRST_AID_HEALTH_CAP = 100
+local FIRST_AID_CRIT_BONUS = 10
+-- floored at 1 health rather than dealt as real damage, so a botched patch-up can never kill someone
+local FIRST_AID_CRIT_FAIL_DAMAGE = 10
 
 ix.command.Add("FirstAid", {
     description = "Rolls First Aid to patch up whoever you're aiming at, or yourself if you aren't. Needs a 10 or better, and anyone can only be healed this way once every 12 hours.",
@@ -1139,6 +1142,25 @@ ix.command.Add("FirstAid", {
             client:Notify(reason)
         end
 
+        -- checked ahead of the threshold: a natural 1 usually falls under it anyway, and botching it
+        -- badly enough to do harm has to take precedence over simply achieving nothing
+        if (diceRoll == 1) then
+            local hurt = math.min(FIRST_AID_CRIT_FAIL_DAMAGE, target:Health() - 1)
+
+            if (hurt > 0) then
+                target:SetHealth(target:Health() - hurt)
+            end
+
+            FailAttempt(isSelf and "You make it worse. That's going to bruise."
+                or ("You make it worse - " .. target:Name() .. " is hurt by the attempt."))
+
+            if (!isSelf) then
+                target:Notify(client:Name() .. " botches the treatment and hurts you.")
+            end
+
+            return
+        end
+
         if (result < FIRST_AID_SUCCESS_THRESHOLD) then
             FailAttempt(isSelf and "You fail to provide any first aid."
                 or ("You fail to provide any first aid to " .. target:Name() .. "."))
@@ -1155,6 +1177,10 @@ ix.command.Add("FirstAid", {
         end
 
         local healAmount = math.floor(diceRoll / 2) + flatBonus
+
+        if (diceRoll == 20) then
+            healAmount = healAmount + FIRST_AID_CRIT_BONUS
+        end
 
         -- a roll can clear 10 and still heal nothing if their First Aid bonus is deeply negative,
         -- since the heal uses half the raw die face rather than the total. treated as a failure
@@ -1184,11 +1210,18 @@ ix.command.Add("FirstAid", {
 -- a short burst of movement speed. the percentage is the roll total itself, so anything from 25 up
 -- reaches the cap - well within reach of a trained character, which is the point
 local ATHLETICS_DURATION = 60
-local ATHLETICS_COOLDOWN = 10 * 60
--- a wasted attempt only costs a minute, the same way /firstaid handles a failed roll
-local ATHLETICS_FAIL_COOLDOWN = 60
+local ATHLETICS_COOLDOWN = 5 * 60
+-- a wasted attempt barely costs anything - just enough to stop the roll being spammed
+local ATHLETICS_FAIL_COOLDOWN = 15
 local ATHLETICS_SUCCESS_THRESHOLD = 10
 local ATHLETICS_MAX_PERCENT = 25
+-- both of these land *after* the cap, so they genuinely stack past it: a capped 25 plus the trait's
+-- 7 plus a critical's 8 is the 40% ceiling
+local ATHLETICS_CRIT_PERCENT = 8
+
+-- a critical failure instead: a pulled muscle, slower than normal for as long as the cooldown lasts
+local ATHLETICS_INJURY_DURATION = 5 * 60
+local ATHLETICS_INJURY_PENALTY = 0.25
 
 -- back to the configured defaults rather than to whatever they were before the boost: those are the
 -- same values PostPlayerLoadout uses, so this can't strand anyone at a modified speed
@@ -1221,9 +1254,39 @@ ix.command.Add("Athletics", {
             return
         end
 
-        local result = PerformSkillCheck(client, "athletics")
+        local result, diceRoll = PerformSkillCheck(client, "athletics")
 
         if (!result) then
+            return
+        end
+
+        -- checked before the threshold, since a natural 1 almost always lands under it anyway and
+        -- the injury has to take precedence over the ordinary failure
+        if (diceRoll == 1) then
+            local penaltyMultiplier = 1 - ATHLETICS_INJURY_PENALTY
+
+            client:SetWalkSpeed(ix.config.Get("walkSpeed") * penaltyMultiplier)
+            client:SetRunSpeed(ix.config.Get("runSpeed") * penaltyMultiplier)
+
+            ApplyCharacterCondition(character, "pulledmuscle", ATHLETICS_INJURY_DURATION / 3600)
+            character:SetData("athleticsCooldownUntil", now + ATHLETICS_COOLDOWN)
+
+            client:Notify("Something in your leg gives out mid-stride. You're limping.")
+
+            -- the injury runs exactly as long as the cooldown, so the penalty can never still be
+            -- running when the next attempt becomes available
+            timer.Simple(ATHLETICS_INJURY_DURATION, function()
+                ResetMovementSpeed(client)
+
+                if (IsValid(client)) then
+                    local activeCharacter = client:GetCharacter()
+
+                    if (activeCharacter == character) then
+                        RemoveCharacterCondition(character, "pulledmuscle")
+                    end
+                end
+            end)
+
             return
         end
 
@@ -1235,6 +1298,22 @@ ix.command.Add("Athletics", {
         end
 
         local percent = math.min(result, ATHLETICS_MAX_PERCENT)
+
+        -- applied after the cap rather than before it, so the trait and a critical are a genuine
+        -- bonus on top of a maxed roll instead of being swallowed by the ceiling
+        for _, tid in ipairs(character:GetData("traits", {})) do
+            local trait = traitsByID[tid]
+
+            if (trait and trait.athleticsBonusPercent) then
+                percent = percent + trait.athleticsBonusPercent
+                break
+            end
+        end
+
+        if (diceRoll == 20) then
+            percent = percent + ATHLETICS_CRIT_PERCENT
+        end
+
         local multiplier = 1 + (percent / 100)
 
         client:SetWalkSpeed(ix.config.Get("walkSpeed") * multiplier)

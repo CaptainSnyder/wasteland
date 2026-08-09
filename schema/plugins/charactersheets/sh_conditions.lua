@@ -301,6 +301,20 @@ PLUGIN.conditions = {
         hideFromList = true
     },
     {
+        id = "pulledmuscle",
+        name = "Pulled a Muscle",
+        description = "Something in your leg gave out mid-stride. Every step is a reminder of it.",
+        durationHours = 5 / 60,
+        category = "health",
+        regionScope = "choice",
+        regionOptions = {"upperleftleg", "upperrightleg"},
+        modifiers = {},
+        effectText = "moving 25% slower",
+        -- the speed penalty itself is applied in the /athletics command rather than through a
+        -- modifier, since modifiers only reach attributes and skills, not movement speed
+        hideFromList = true
+    },
+    {
         id = "cigarette",
         name = "Nicotine Buzz",
         description = "A quick smoke steadies your nerves, if only for a little while.",
