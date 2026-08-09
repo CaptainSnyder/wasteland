@@ -1413,6 +1413,20 @@ ix.command.Add("Athletics", {
     end
 })
 
+-- ix.command.Add has to run on both realms or the client never learns the command exists, which keeps
+-- it out of the F1 help list and out of chat autocomplete. the body is server-only, so it's split out
+-- here and assigned inside the SERVER block below
+local ToggleSneaking
+
+ix.command.Add("SneakyShit", {
+    description = "Toggles Sneaky Shit stealth: forces you to crouch, slows your pace, and hides you from anyone who hasn't spotted you. Breaks the moment you fight or take a hit.",
+    OnRun = function(self, client)
+        if (ToggleSneaking) then
+            ToggleSneaking(client)
+        end
+    end
+})
+
 -- forced every tick, on both realms, so the local player's own prediction ducks in lockstep with what
 -- the server is doing instead of fighting it and rubber-banding
 hook.Add("SetupMove", "ixSneakyShitForceCrouch", function(client, mv)
@@ -1516,9 +1530,9 @@ if (SERVER) then
         end
     end
 
-    ix.command.Add("SneakyShit", {
-        description = "Toggles Sneaky Shit stealth: forces you to crouch, slows your pace, and hides you from anyone who hasn't spotted you. Breaks the moment you fight or take a hit.",
-        OnRun = function(self, client)
+    -- assigns to the file-scope local declared above, so the command itself can be registered on both
+    -- realms while its body stays server-only
+    function ToggleSneaking(client)
             local character = client:GetCharacter()
 
             if (!character or !client:Alive()) then
@@ -1544,8 +1558,7 @@ if (SERVER) then
             -- flash of normal visibility the instant the command goes off
             SetSneakVisible(client, IsSneakSpotted(client, client.ixSneakRadius))
             client:Notify("You crouch low and go still, blending into your surroundings.")
-        end
-    })
+    end
 
     -- one tick driving every sneaking player's visibility, same shape as the bleeding/hunger/thirst
     -- ticks below, rather than a timer per player
@@ -1809,6 +1822,18 @@ local PICKPOCKET_DELAY = 3
 local pendingPickpockets = {}
 local pendingPickpocketsByThief = {}
 
+-- registered on both realms so the client knows the command exists; the body is assigned server-side
+local AttemptPickpocket
+
+ix.command.Add("Pickpocket", {
+    description = "Attempts to pick the pocket of whoever you are aiming at. Takes a few seconds, holds you in place while they decide, and they choose whether to allow, contest or block it.",
+    OnRun = function(self, client)
+        if (AttemptPickpocket) then
+            AttemptPickpocket(client)
+        end
+    end
+})
+
 local function ClearPickpocket(entry)
     if (!entry) then
         return
@@ -1819,9 +1844,9 @@ local function ClearPickpocket(entry)
 end
 
 if (SERVER) then
-    ix.command.Add("Pickpocket", {
-        description = "Attempts to pick the pocket of whoever you are aiming at. Takes a few seconds, holds you in place while they decide, and they choose whether to allow, contest or block it.",
-        OnRun = function(self, client)
+    -- assigns to the file-scope local above, so the command registers on both realms while its body
+    -- stays server-only. see the note on ToggleSneaking
+    function AttemptPickpocket(client)
             local character = client:GetCharacter()
 
             if (!character) then
@@ -1932,8 +1957,7 @@ if (SERVER) then
             end)
 
             client:Notify(string.format("You reach for %s's pocket...", target:Name()))
-        end
-    })
+    end
 
     net.Receive("ixPickpocketCancel", function(length, client)
         local entry = pendingPickpocketsByThief[client:SteamID64()]
