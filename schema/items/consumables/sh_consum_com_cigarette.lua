@@ -26,12 +26,14 @@ ITEM.functions.Smoke = {
 	end
 }
 
--- drug item, follows medical junkify rules: common drug/medical item: 4-10 tokens when junkified
+-- cigarettes are on their own scale rather than the medical one, because packs and cartons are
+-- worth exactly what they contain (a pack = 20 cigarettes, a carton = 8 packs = 160 cigarettes).
+-- keeping the per-cigarette value this low is what stops those containers running away entirely
 ITEM.functions.Junkify = {
 	OnRun = function(itemTable)
 		local client = itemTable.player
 		local character = client:GetCharacter()
-		character:GiveMoney(ix.config.Get("rationTokens", math.random(4, 10)))
+		character:GiveMoney(ix.config.Get("rationTokens", math.random(1, 3)))
 		client:EmitSound("physics/metal/metal_box_break1.wav", 75, math.random(160, 180), 0.35)
 	end
 }

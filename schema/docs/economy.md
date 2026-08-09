@@ -1,0 +1,153 @@
+# Item Economy Reference
+
+Junkify payouts and prices by item category. **Read this before adding new items** — the tiers
+differ per category, and it's easy to apply the wrong table.
+
+Original notation from the design doc was `min|max [price]` — e.g. `Common Crafting - 1|5 [5]`
+means junkify pays 1-5 and the item costs 5. Ammo is the exception: it's written as
+`Small [price] | Carton(x6) [price]`, listing prices for the two pack sizes with no junkify range.
+
+## Which table applies?
+
+| Item kind | Table to use |
+|---|---|
+| Food & Drinks | Consumable |
+| Drugs (alcohol, cigarettes) & Medicine | Medical |
+| Crafting materials | Craft |
+| Junk with no crafting use | Trash |
+| Skill Books | Skill Book |
+
+Note the split: **drugs follow the medical table, not the consumable table**, even though they're
+consumed. Food and drink are the only things on the consumable table.
+
+## Consumable (Food & Drinks)
+
+| Tier | Price | Junkify |
+|---|---|---|
+| Common | 5 | 1-5 |
+| Uncommon | 10 | 3-7 |
+| Rare | 30 | 4-10 |
+
+## Medical (Medicine & Drugs)
+
+| Tier | Price | Junkify |
+|---|---|---|
+| Common | 20 | 4-10 |
+| Uncommon | 75 | 8-30 |
+| Rare | 150 | 15-50 |
+
+Cigarettes are drugs but do **not** use this table — see Cigarettes below.
+
+## Craft (crafting materials)
+
+| Tier | Price | Junkify |
+|---|---|---|
+| Common | 5 | 1-5 |
+| Uncommon | 20 | 4-10 |
+| Rare | 50 | 5-20 |
+
+## Trash (`schema/items/junk/`)
+
+Anything that has no crafting use at all.
+
+| Price | Junkify |
+|---|---|
+| 0 | 1-3 |
+
+## Skill Books
+
+| Type | Price | Junkify |
+|---|---|---|
+| True Skill Book (single skill) | 1500 | 200-400 |
+| Category Skill Book (pick any in category) | 2000 | 200-400 |
+
+## Weapons
+
+Split into Sidearms and Primaries, each with their own tiers.
+
+### Sidearms
+
+| Tier | Price | Junkify | Examples |
+|---|---|---|---|
+| Common | 250 | 25-75 | 9mm Pistol, 10mm Pistol, Pipe Revolver |
+| Uncommon | 500 | 50-200 | .44 Revolver, Laser Pistol |
+| Rare | 1,000 | 100-400 | 12.7mm Pistol |
+
+### Primaries
+
+| Tier | Price | Junkify | Examples |
+|---|---|---|---|
+| Common | 400 | 25-100 | 9mm SMG, Caravan Shotgun, Cowboy Repeater, Handmade Rifle, Pipe Bolt/Semi, Varmint Rifle |
+| Uncommon | 850 | 75-300 | 10mm SMG, Assault Carbine, Combat Rifle, Hunting Rifle, Hunting Shotgun, Laser Rifle, Marksman Rifle, Submachine Gun |
+| Rare | 1,500 | 125-500 | Laser Sniper, Anti-Material Rifle, Combat Shotgun |
+
+## Cigarettes (own scale)
+
+Cigarettes get a unique scale because the containers nest: a pack holds 20 cigarettes, a carton
+holds 8 packs (160 cigarettes). Rather than assigning each tier its own range, everything derives
+from the single-cigarette value, so a container is worth exactly what's still inside it.
+
+| Item | Price | Junkify | Max junkify |
+|---|---|---|---|
+| Cigarette | 5 | 1-3 | 3 |
+| Cigarette Pack (20 cigarettes) | 75 | 1-3 per remaining cigarette | 60 |
+| Cigarette Carton (8 packs) | 550 | 1-3 per remaining cigarette | 480 |
+
+The per-cigarette value is kept deliberately low since cigarettes are meant to be common. Partially
+used containers are handled exactly rather than by percentage — a pack with 7 left rolls 7 times,
+no scaling approximation.
+
+Prices sit above each item's **maximum** junkify roll, so selling always beats scrapping even on a
+lucky roll. They also bulk-discount downward per cigarette (5 each loose → 3.75 in a pack → 3.44 in
+a carton), so buying in bulk stays worthwhile.
+
+## Ammo
+
+Priced by pack size. **Ammo is intentionally not junkifiable** — none of the ammo items define a
+`Junkify` function, and new ones shouldn't either.
+
+The x6 carton is priced as "buy 5, get 1 free" rather than a straight 6x multiple (e.g. common
+small is 25, so the carton is 125 rather than 150).
+
+| Tier | Small | Carton (x6) | Calibers |
+|---|---|---|---|
+| Common | 25 | 125 | 9mm, 12g, .38, 5.56, 5mm |
+| Uncommon | 40 | 200 | 10mm, .357, .308, .44, .45 |
+| Rare | 65 | 325 | .50 MG, MFC, 12.7mm |
+
+## Charge-based items
+
+Items with a `charges` counter (Cigarette Pack, Cigarette Carton) pay out per unit still inside,
+rather than scaling a single roll by a percentage — counting the actual contents is both simpler and
+exact:
+
+```lua
+local charges = itemTable:GetData("charges", MAX_CHARGES)
+local amount = 0
+
+for i = 1, charges do
+	amount = amount + math.random(min, max)
+end
+
+character:GiveMoney(ix.config.Get("rationTokens", math.max(1, amount)))
+```
+
+The Carton multiplies the loop bound by `CIGARETTES_PER_PACK`, since each pack it holds is itself
+worth its 20 cigarettes. The `math.max(1, ...)` floor means an empty container still pays at least 1,
+never nothing.
+
+`ITEM:OnInstanced()` sets the starting charge count. That hook only fires from `ix.item.Instance`
+(true first creation — admin spawn, vendor stock, a carton dispensing a pack), never from
+`ix.item.New` when the database restores a partially-used item, so a saved half-empty pack keeps its
+real count.
+
+## Conventions
+
+- Every item gets a `Junkify` function, even non-junk items.
+- Descriptions are tagged with their tier: `"[COMMON] A loaf of bread..."`.
+- Filenames encode the tier: `sh_craft_uncom_leather.lua`, `sh_foods_com_bread.lua`. Helix derives
+  an item's uniqueID from the filename (minus the `sh_` prefix and `.lua`), so **renaming a file
+  changes its uniqueID** and orphans any copies already saved in player inventories.
+- Junkify sound is `physics/metal/metal_box_break1.wav` across the board, regardless of material.
+- Currency is Scrap (set in `sh_schema.lua` via `ix.currency.Set`), despite the config key in
+  Junkify calls still being named `rationTokens`.

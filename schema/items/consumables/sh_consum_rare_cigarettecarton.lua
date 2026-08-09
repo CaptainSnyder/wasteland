@@ -2,11 +2,12 @@ ITEM.name = "Cigarette Carton"
 ITEM.model = Model("models/mosi/fallout4/props/junk/cigarettecarton.mdl")
 ITEM.description = "[RARE] A carton of cigarette packs."
 ITEM.category = "Consumable"
-ITEM.price = 30
+-- priced above the 480 a full carton can junkify for, so selling always beats scrapping
+ITEM.price = 550
 ITEM.width = 2
 ITEM.height = 1
 
-local MAX_PACKS = 12
+local MAX_PACKS = 8
 
 -- see sh_consum_uncom_cigarettepack.lua - same reasoning, only ever runs on true first creation
 function ITEM:OnInstanced()
@@ -56,15 +57,23 @@ ITEM.functions.Take = {
 	end
 }
 
--- drug item, follows medical junkify rules: rare drug/medical item: 15-50 tokens when junkified
--- at full charges, scaled down by how many packs have already been taken
+-- a carton is worth exactly the packs still inside it, and each of those is worth its 20 cigarettes
+-- - so one 1-3 roll per cigarette still in the carton. a full carton (8 packs = 160 cigarettes)
+-- lands 160-480; a mostly-empty one drops off just as steeply
+local CIGARETTES_PER_PACK = 20
+
 ITEM.functions.Junkify = {
 	OnRun = function(itemTable)
 		local client = itemTable.player
 		local character = client:GetCharacter()
 		local charges = itemTable:GetData("charges", MAX_PACKS)
-		local amount = math.max(1, math.floor(math.random(15, 50) * (charges / MAX_PACKS)))
-		character:GiveMoney(ix.config.Get("rationTokens", amount))
+		local amount = 0
+
+		for i = 1, charges * CIGARETTES_PER_PACK do
+			amount = amount + math.random(1, 3)
+		end
+
+		character:GiveMoney(ix.config.Get("rationTokens", math.max(1, amount)))
 		client:EmitSound("physics/metal/metal_box_break1.wav", 75, math.random(160, 180), 0.35)
 	end
 }

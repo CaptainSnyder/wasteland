@@ -2,7 +2,8 @@ ITEM.name = "Cigarette Pack"
 ITEM.model = Model("models/mosi/fallout4/props/junk/cigarettepack.mdl")
 ITEM.description = "[UNCOMMON] A pack of cigarettes."
 ITEM.category = "Consumable"
-ITEM.price = 10
+-- priced above the 60 a full pack can junkify for, so selling always beats scrapping
+ITEM.price = 75
 ITEM.width = 1
 ITEM.height = 1
 
@@ -59,15 +60,21 @@ ITEM.functions.Take = {
 	end
 }
 
--- drug item, follows medical junkify rules: uncommon drug/medical item: 8-30 tokens when junkified
--- at full charges, scaled down by how many cigarettes have already been taken
+-- a pack is worth exactly the cigarettes still inside it - one 1-3 roll per remaining cigarette,
+-- so a full pack lands 20-60 and a nearly empty one is worth almost nothing. this replaces the old
+-- percentage-scaling approach, since counting the actual contents is both simpler and exact
 ITEM.functions.Junkify = {
 	OnRun = function(itemTable)
 		local client = itemTable.player
 		local character = client:GetCharacter()
 		local charges = itemTable:GetData("charges", MAX_CIGARETTES)
-		local amount = math.max(1, math.floor(math.random(8, 30) * (charges / MAX_CIGARETTES)))
-		character:GiveMoney(ix.config.Get("rationTokens", amount))
+		local amount = 0
+
+		for i = 1, charges do
+			amount = amount + math.random(1, 3)
+		end
+
+		character:GiveMoney(ix.config.Get("rationTokens", math.max(1, amount)))
 		client:EmitSound("physics/metal/metal_box_break1.wav", 75, math.random(160, 180), 0.35)
 	end
 }
