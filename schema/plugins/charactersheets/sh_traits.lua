@@ -1,7 +1,11 @@
--- Example traits — replace/expand this list with your real ones.
--- tier: 1 = basic, usually a drawback, freely available on request
+-- tier: 0 = purely negative, no mechanical upside at all - free to take, and shown last in both trait
+--           browsers despite the number, since a wall of drawbacks isn't a useful thing to open on
+--       1 = basic, either a small clean benefit or a genuine give-and-take, available to everyone
 --       2 = strong benefit, sometimes a small drawback, staff-rewarded
 --       3 = strong benefit, zero drawback, rarely rewarded / GM use
+--
+-- the line between 0 and 1 is whether the trait gives you anything: Criminal is tier 1 because its
+-- charisma penalty buys two skill points, while Cursed is tier 0 because it only takes
 -- modifiers: {type = "attribute" or "skill", target = <attribute or skill id>, amount = number (can be negative)}
 PLUGIN.traits = {
     {
@@ -48,7 +52,8 @@ PLUGIN.traits = {
         tier = 3
     },
 
-    -- Tier 1 minor attribute traits: +1 or -1 to a single attribute
+    -- minor attribute traits: +1 or -1 to a single attribute. the +1 halves are tier 1, the -1 halves
+    -- are tier 0, so each pair is split across the two sections in the browser
     {
         id = "sharpeyed",
         name = "Sharp Eyed",
@@ -60,7 +65,7 @@ PLUGIN.traits = {
         id = "oblivious",
         name = "Oblivious",
         description = "You tend to miss what's going on around you.",
-        tier = 1,
+        tier = 0,
         modifiers = {{type = "attribute", target = "awareness", amount = -1}}
     },
     {
@@ -74,7 +79,7 @@ PLUGIN.traits = {
         id = "offputting",
         name = "Off-Putting",
         description = "Something about you rubs people the wrong way.",
-        tier = 1,
+        tier = 0,
         modifiers = {{type = "attribute", target = "charisma", amount = -1}}
     },
     {
@@ -88,7 +93,7 @@ PLUGIN.traits = {
         id = "butterfingers",
         name = "Butterfingers",
         description = "You fumble things more often than most.",
-        tier = 1,
+        tier = 0,
         modifiers = {{type = "attribute", target = "coordination", amount = -1}}
     },
     {
@@ -102,7 +107,7 @@ PLUGIN.traits = {
         id = "slowlearner",
         name = "Slow Learner",
         description = "It takes you a bit longer to understand new things.",
-        tier = 1,
+        tier = 0,
         modifiers = {{type = "attribute", target = "intelligence", amount = -1}}
     },
     {
@@ -116,7 +121,7 @@ PLUGIN.traits = {
         id = "unlucky",
         name = "Unlucky",
         description = "Things just don't seem to go your way.",
-        tier = 1,
+        tier = 0,
         modifiers = {{type = "attribute", target = "luck", amount = -1}}
     },
     {
@@ -130,7 +135,7 @@ PLUGIN.traits = {
         id = "lameleg",
         name = "Lame Leg",
         description = "An old injury slows you down.",
-        tier = 1,
+        tier = 0,
         modifiers = {{type = "attribute", target = "speed", amount = -1}}
     },
     {
@@ -144,7 +149,7 @@ PLUGIN.traits = {
         id = "frail",
         name = "Frail",
         description = "You're a bit weaker than most.",
-        tier = 1,
+        tier = 0,
         modifiers = {{type = "attribute", target = "strength", amount = -1}}
     },
 
@@ -275,7 +280,7 @@ PLUGIN.traits = {
         id = "fearofblood",
         name = "Fear of Blood",
         description = "The sight of blood makes your hands shake and your stomach turn.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"firstaid"}
     },
     {
@@ -499,7 +504,7 @@ PLUGIN.traits = {
         id = "chronicpain",
         name = "Chronic Pain",
         description = "An old injury flares up without warning, sapping your strength and slowing you down.",
-        tier = 1,
+        tier = 0,
         modifiers = {
             {type = "attribute", target = "strength", amount = -2},
             {type = "attribute", target = "speed", amount = -1}
@@ -510,7 +515,7 @@ PLUGIN.traits = {
         id = "onehanded",
         name = "One-Handed",
         description = "You've grown used to relying on your dominant hand alone, and it shows.",
-        tier = 1,
+        tier = 0,
         modifiers = {
             {type = "attribute", target = "coordination", amount = -2},
             {type = "attribute", target = "strength", amount = -1}
@@ -520,7 +525,7 @@ PLUGIN.traits = {
         id = "hardofhearing",
         name = "Hard of Hearing",
         description = "Your hearing isn't what it used to be, and it's made you slower to notice danger.",
-        tier = 1,
+        tier = 0,
         disadvantageAttributes = {"awareness"},
         disadvantageSkills = {"vigilance"}
     },
@@ -528,7 +533,7 @@ PLUGIN.traits = {
         id = "sluggish",
         name = "Sluggish",
         description = "You move noticeably slower than most people around you.",
-        tier = 1,
+        tier = 0,
         modifiers = {
             {type = "attribute", target = "speed", amount = -2}
         }
@@ -546,14 +551,14 @@ PLUGIN.traits = {
         id = "superstitiousfool",
         name = "Superstitious Fool",
         description = "You put more faith in omens and luck than in facts, and it shows.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"gambling", "nerdstuff"}
     },
     {
         id = "forgetful",
         name = "Forgetful",
         description = "Names, details, plans - they all seem to slip right out of your head.",
-        tier = 1,
+        tier = 0,
         modifiers = {
             {type = "attribute", target = "intelligence", amount = -2}
         },
@@ -563,7 +568,7 @@ PLUGIN.traits = {
         id = "cursed",
         name = "Cursed",
         description = "Fortune has turned its back on you completely.",
-        tier = 1,
+        tier = 0,
         modifiers = {
             {type = "attribute", target = "luck", amount = -3}
         }
@@ -588,7 +593,7 @@ PLUGIN.traits = {
         id = "drugaddict",
         name = "Drug Addict",
         description = "You're hooked - go too long without something to take the edge off and your body will make you regret it.",
-        tier = 1,
+        tier = 0,
         effectText = "suffers Withdrawal (-1 to all attributes and all skills) whenever you don't have a drug in your system"
         -- no modifiers here - the drawback is entirely mechanical, see the Withdrawal condition and
         -- GetActiveConditions in sh_plugin.lua, which auto-applies Withdrawal to anyone with this trait
@@ -598,7 +603,7 @@ PLUGIN.traits = {
         id = "branded",
         name = "Branded",
         description = "Someone owned you once, and they made sure you'd never forget it - the brand they left on you saw to that. Every time you tried to push back against what was done to you, it was answered with a beating harder than the last, until you stopped pushing back at all. Standing your ground now takes more out of you than it should.",
-        tier = 1,
+        tier = 0,
         modifiers = {
             {type = "attribute", target = "charisma", amount = -1}
         },
@@ -683,7 +688,7 @@ PLUGIN.traits = {
         id = "poornutritionalhabits",
         name = "Poor Nutritional Habits",
         description = "You've never had a good relationship with food and water. Whatever you eat or drink just doesn't do as much for you.",
-        tier = 1,
+        tier = 0,
         effectText = "food and drink restore 25% less than normal"
         -- reduces the effect of every food/drink item by 25% - checked directly in the shared
         -- Apply function (drift-needings/items/base/sh_foods.lua), not a modifier
@@ -701,7 +706,7 @@ PLUGIN.traits = {
         id = "bigappetite",
         name = "Big Appetite",
         description = "You burn through food fast, no matter how much you eat.",
-        tier = 1,
+        tier = 0,
         effectText = "hunger drains 25% faster"
         -- hunger drains 25% faster - checked directly in GetHungerInterval (drift-needings/sv_hooks.lua),
         -- which the ixNeedsDecayTick timer re-reads every tick, so it applies without a respawn
@@ -719,7 +724,7 @@ PLUGIN.traits = {
         id = "unquenchablethirst",
         name = "Unquenchable Thirst",
         description = "No matter how much you drink, you're parched again before long.",
-        tier = 1,
+        tier = 0,
         effectText = "thirst drains 25% faster"
         -- thirst drains 25% faster - checked directly in GetThirstInterval (drift-needings/sv_hooks.lua),
         -- which the ixNeedsDecayTick timer re-reads every tick, so it applies without a respawn
@@ -784,7 +789,7 @@ PLUGIN.traits = {
         id = "recoilshy",
         name = "Recoil Shy",
         description = "The first round goes exactly where you wanted. The remaining twenty-nine are put to a vote, and you are outnumbered.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"automaticweapons"}
     },
     {
@@ -798,7 +803,7 @@ PLUGIN.traits = {
         id = "badback",
         name = "Bad Back",
         description = "You can lift it. You cannot aim it, hold it steady, or walk normally for the rest of the week, but you can lift it.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"bigguns"}
     },
     {
@@ -812,7 +817,7 @@ PLUGIN.traits = {
         id = "glassjaw",
         name = "Glass Jaw",
         description = "You throw a respectable punch. This remains true right up until the moment somebody throws one back at you.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"brawling"}
     },
     {
@@ -826,7 +831,7 @@ PLUGIN.traits = {
         id = "loosegrip",
         name = "Loose Grip",
         description = "A blade is a simple tool: the pointy end goes in the other person. Yours keeps ending up on the floor between you.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"melee"}
     },
     {
@@ -840,7 +845,7 @@ PLUGIN.traits = {
         id = "pointblankmiss",
         name = "Point Blank Miss",
         description = "You have missed at a range where missing should be physically impossible. Not once. There were witnesses both times.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"smallarms"}
     },
     {
@@ -854,7 +859,7 @@ PLUGIN.traits = {
         id = "caffeineshakes",
         name = "Caffeine Shakes",
         description = "Six cups deep and the crosshair has developed a pulse of its own. You could stop drinking it. You will not.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"snipers"}
     },
     {
@@ -868,7 +873,7 @@ PLUGIN.traits = {
         id = "shockprone",
         name = "Shock Prone",
         description = "Every energy weapon you pick up discovers a fresh and creative route to discharge directly into your hand. They cannot all be faulty.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"energyweapons"}
     },
     {
@@ -882,7 +887,7 @@ PLUGIN.traits = {
         id = "cookedittoolong",
         name = "Cooked It Too Long",
         description = "You hold on to things a beat longer than anyone standing near you is comfortable with. Your friends have learned to stand further away.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"throwing"}
     },
 
@@ -898,7 +903,7 @@ PLUGIN.traits = {
         id = "alltenfingers",
         name = "All Ten Fingers",
         description = "You still have every finger you were born with, a fact you mention constantly and which everyone around you regards as temporary.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"explosives"}
     },
     {
@@ -912,7 +917,7 @@ PLUGIN.traits = {
         id = "heavyfooted",
         name = "Heavy Footed",
         description = "Your approach has been described, by people trying to be kind about it, as audible.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"sneakyshit"}
     },
     {
@@ -926,7 +931,7 @@ PLUGIN.traits = {
         id = "allergictoreading",
         name = "Allergic to Reading",
         description = "Words arranged in rows make your eyes slide clean off the page. You've gotten this far on pictures and confidence.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"nerdstuff"}
     },
     {
@@ -940,7 +945,7 @@ PLUGIN.traits = {
         id = "dueforawin",
         name = "Due for a Win",
         description = "You've lost eleven hands running. By your reasoning this makes the twelfth a mathematical certainty. It does not.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"gambling"}
     },
 
@@ -956,7 +961,7 @@ PLUGIN.traits = {
         id = "hamfisted",
         name = "Ham-Fisted",
         description = "Every lock you lay hands on becomes, through sheer force of personality, a permanently sealed door.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"lockpicking"}
     },
     {
@@ -970,7 +975,7 @@ PLUGIN.traits = {
         id = "indoorkid",
         name = "Indoor Kid",
         description = "The wasteland is out there. You are aware of this. You would like it to remain out there, and you resent every minute spent in it.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"survival"}
     },
     {
@@ -984,7 +989,7 @@ PLUGIN.traits = {
         id = "warrantyvoid",
         name = "Warranty Void",
         description = "Everything you repair comes back working, plus one exciting new problem that wasn't there before and that nobody can trace.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"repair"}
     },
     {
@@ -998,14 +1003,14 @@ PLUGIN.traits = {
         id = "leftitbehind",
         name = "Left It Behind",
         description = "The good stuff was right there. You looked directly at it. You picked up the other thing and left feeling pleased with yourself.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"scavenging"}
     },
     {
         id = "daydreamer",
         name = "Daydreamer",
         description = "You are somewhere else most of the time, and by every account it's a considerably nicer place than this one.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"vigilance"}
     },
     {
@@ -1019,7 +1024,7 @@ PLUGIN.traits = {
         id = "twopacksaday",
         name = "Two Packs a Day",
         description = "Your lungs made their position clear years ago. You've chosen to respect their decision rather than fight it.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"athletics"}
     },
     {
@@ -1033,7 +1038,7 @@ PLUGIN.traits = {
         id = "nolicense",
         name = "No License",
         description = "Nobody ever taught you and you never saw the need to find out. This becomes apparent to your passengers within about four seconds.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"piloting"}
     },
 
@@ -1049,7 +1054,7 @@ PLUGIN.traits = {
         id = "paysaskingprice",
         name = "Pays Asking Price",
         description = "You have never once questioned a number said to you with enough confidence. Merchants have a particular look they get when you walk in.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"barter"}
     },
     {
@@ -1063,7 +1068,7 @@ PLUGIN.traits = {
         id = "pleaseandthankyou",
         name = "Please and Thank You",
         description = "Somebody raised you far too well. You cannot issue a threat without softening it into a request, and it shows.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"hardass"}
     },
     {
@@ -1077,7 +1082,7 @@ PLUGIN.traits = {
         id = "allergictoflattery",
         name = "Allergic to Flattery",
         description = "You are physically incapable of saying something nice that you don't mean, which has cost you more than you'll ever admit.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"kissass"}
     },
     {
@@ -1091,7 +1096,7 @@ PLUGIN.traits = {
         id = "committeeofone",
         name = "Committee of One",
         description = "You struggle to get yourself to agree on a plan. Convincing several other armed people to follow it is well beyond you.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"leadership"}
     },
     {
@@ -1105,7 +1110,7 @@ PLUGIN.traits = {
         id = "awfulpokerface",
         name = "Awful Poker Face",
         description = "Every thought you have arrives on your face a full three seconds before it reaches your mouth, and it always gets there first.",
-        tier = 1,
+        tier = 0,
         disadvantageSkills = {"deception"}
     }
 }

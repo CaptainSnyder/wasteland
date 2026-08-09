@@ -534,10 +534,15 @@ local function BuildSkillsPage(parent, data)
 end
 
 local TRAIT_TIER_INFO = {
+    [0] = {label = "Negative", color = Color(200, 95, 85)},
     [1] = {label = "Tier 1", color = Color(180, 180, 180)},
     [2] = {label = "Tier 2", color = Color(217, 179, 92)},
     [3] = {label = "Tier 3", color = Color(190, 90, 200)}
 }
+
+-- tier 0 sorts last despite its number, matching the trait browser in cl_traits.lua - a character's
+-- drawbacks belong under what they're good at, not above it
+local TRAIT_TIER_RANK = {[1] = 1, [2] = 2, [3] = 3, [0] = 4}
 
 local function BuildTraitsPage(parent, data)
     local scroll = vgui.Create("DScrollPanel", parent)
@@ -559,10 +564,11 @@ local function BuildTraitsPage(parent, data)
     end
 
     table.sort(sortedTraits, function(a, b)
-        local tierA, tierB = a.tier or 1, b.tier or 1
+        local rankA = TRAIT_TIER_RANK[a.tier or 1] or 1
+        local rankB = TRAIT_TIER_RANK[b.tier or 1] or 1
 
-        if (tierA != tierB) then
-            return tierA < tierB
+        if (rankA != rankB) then
+            return rankA < rankB
         end
 
         return a.name < b.name

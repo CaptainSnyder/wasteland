@@ -2,10 +2,16 @@ local traitList = PLUGIN.traits
 local FormatTraitModifiers = PLUGIN.FormatTraitModifiers
 
 local TIER_INFO = {
+    [0] = {label = "Negative Traits", color = Color(200, 95, 85)},
     [1] = {label = "Tier 1 - Basic", color = Color(180, 180, 180)},
     [2] = {label = "Tier 2 - Rewarded", color = Color(217, 179, 92)},
     [3] = {label = "Tier 3 - GM/Rare", color = Color(190, 90, 200)}
 }
+
+-- tier 0 is numbered below tier 1 (it costs nothing to take) but shown last, since a wall of
+-- drawbacks is not what anyone wants at the top of the list. the number is invisible to players -
+-- only this order and the label above are - so display order is deliberately not numeric order
+local TIER_DISPLAY_ORDER = {1, 2, 3, 0}
 
 local function OpenTraitList()
     local frame = vgui.Create("DFrame")
@@ -18,8 +24,7 @@ local function OpenTraitList()
     scroll:Dock(FILL)
     scroll:DockMargin(10, 10, 10, 10)
 
-    -- group traits by tier, 1 through 3
-    local byTier = {[1] = {}, [2] = {}, [3] = {}}
+    local byTier = {}
 
     for _, trait in ipairs(traitList) do
         local tier = trait.tier or 1
@@ -27,21 +32,47 @@ local function OpenTraitList()
         table.insert(byTier[tier], trait)
     end
 
-    for tier = 1, 3 do
+    for _, tier in ipairs(TIER_DISPLAY_ORDER) do
         local traits = byTier[tier]
 
         if (traits and #traits > 0) then
             table.SortByMember(traits, "name", true)
 
             local info = TIER_INFO[tier]
+            -- every card in this tier, so the header can hide and show them as a group
+            local boxes = {}
+            local expanded = true
 
-            local header = scroll:Add("DLabel")
-            header:SetText(info.label)
+            local header = scroll:Add("DButton")
             header:SetFont("DermaDefaultBold")
             header:SetTextColor(info.color)
+            header:SetContentAlignment(4)
+            header:SetTextInset(4, 0)
             header:Dock(TOP)
             header:SetTall(22)
             header:DockMargin(0, 10, 0, 2)
+            header.Paint = function() end -- headers stay flat text, not raised buttons
+
+            local function UpdateHeader()
+                header:SetText(string.format(
+                    "%s %s (%d)", expanded and "-" or "+", info.label, #traits
+                ))
+            end
+
+            header.DoClick = function()
+                expanded = !expanded
+
+                -- a hidden docked panel is skipped by the layout entirely, so collapsing genuinely
+                -- reclaims the space rather than leaving a gap behind
+                for _, box in ipairs(boxes) do
+                    box:SetVisible(expanded)
+                end
+
+                UpdateHeader()
+                scroll:InvalidateLayout()
+            end
+
+            UpdateHeader()
 
             for _, trait in ipairs(traits) do
                 local box = scroll:Add("DPanel")
@@ -50,6 +81,8 @@ local function OpenTraitList()
                 box.Paint = function(self, w, h)
                     draw.RoundedBox(4, 0, 0, w, h, Color(35, 35, 35))
                 end
+
+                boxes[#boxes + 1] = box
 
                 local nameLabel = box:Add("DLabel")
                 nameLabel:SetText(trait.name)
