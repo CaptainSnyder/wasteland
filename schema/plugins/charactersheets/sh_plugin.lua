@@ -19,9 +19,6 @@ local charSetupStages = PLUGIN.charSetupStages
 local skillList = PLUGIN.skills
 local skillLevelCost = PLUGIN.skillLevelCost
 local traitList = PLUGIN.traits
--- captured at load like the rest: PLUGIN is only valid while this file is being included, so anything
--- reaching for it at runtime would find nil
-local FormatTraitModifiers = PLUGIN.FormatTraitModifiers
 
 -- trait purchasing. buying a trait costs more the more you've already bought, on exactly the curve
 -- skills use: the Nth trait you buy costs skillLevelCost[N]. only traits actually *bought* escalate
@@ -1345,21 +1342,19 @@ if (SERVER) then
             owned[tid] = true
         end
 
+        -- only the id and owned flag go over the wire. the client has the whole trait table already
+        -- (sh_traits.lua is shared), so it looks up the name, description and effect itself - which
+        -- also keeps FormatTraitModifiers clientside, where the L() calls inside it can actually work
         local available = {}
 
         for _, trait in ipairs(traitList) do
             if ((trait.tier or 1) == 1) then
                 available[#available + 1] = {
                     id = trait.id,
-                    name = trait.name,
-                    description = trait.description,
-                    effect = FormatTraitModifiers(trait),
                     owned = owned[trait.id] == true
                 }
             end
         end
-
-        table.SortByMember(available, "name", true)
 
         net.Start("ixOpenTraitPurchase")
             net.WriteTable({

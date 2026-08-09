@@ -1,5 +1,15 @@
 -- the /buytraits shop. only Tier 1 traits are ever sent here - the server decides that, and re-checks
--- it on purchase, so this window never has to police what's buyable
+-- it on purchase, so this window never has to police what's buyable.
+-- the server sends ids and owned flags only; names, descriptions and effects are looked up here from
+-- the shared trait table, which keeps FormatTraitModifiers clientside where its L() calls work
+local FormatTraitModifiers = PLUGIN.FormatTraitModifiers
+
+local traitDefsByID = {}
+
+for _, trait in ipairs(PLUGIN.traits) do
+    traitDefsByID[trait.id] = trait
+end
+
 local purchaseFrame
 
 local function BuildPurchaseWindow(data)
@@ -46,7 +56,26 @@ local function BuildPurchaseWindow(data)
     scroll:Dock(FILL)
     scroll:DockMargin(10, 0, 10, 10)
 
-    for _, trait in ipairs(data.traits or {}) do
+    -- resolved from the shared table, then sorted here since the server no longer sends names
+    local entries = {}
+
+    for _, sent in ipairs(data.traits or {}) do
+        local def = traitDefsByID[sent.id]
+
+        if (def) then
+            entries[#entries + 1] = {
+                id = def.id,
+                name = def.name,
+                description = def.description,
+                effect = FormatTraitModifiers(def),
+                owned = sent.owned
+            }
+        end
+    end
+
+    table.SortByMember(entries, "name", true)
+
+    for _, trait in ipairs(entries) do
         local box = scroll:Add("DPanel")
         box:Dock(TOP)
         box:DockMargin(0, 0, 0, 5)

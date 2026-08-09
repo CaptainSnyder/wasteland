@@ -1283,7 +1283,26 @@ for _, skill in ipairs(PLUGIN.skills) do
     skillsByID[skill.id] = skill
 end
 
-PLUGIN.FormatTraitModifiers = function(trait)
+-- L() resolves against the local player, so calling it serverside without an explicit one asserts and
+-- takes down whatever was running. this is meant to be called clientside, but a server caller can pass
+-- a player - and with neither, the raw key is a far better outcome than an error
+local function LocalizeAttributeName(attribData, fallback, client)
+    if (!attribData) then
+        return fallback
+    end
+
+    if (CLIENT) then
+        return L(attribData.name)
+    end
+
+    if (IsValid(client)) then
+        return L(attribData.name, client)
+    end
+
+    return attribData.name
+end
+
+PLUGIN.FormatTraitModifiers = function(trait, client)
     local parts = {}
 
     for _, mod in ipairs(trait.modifiers or {}) do
@@ -1291,7 +1310,7 @@ PLUGIN.FormatTraitModifiers = function(trait)
 
         if (mod.type == "attribute") then
             local attribData = ix.attributes.list[mod.target]
-            targetName = attribData and L(attribData.name) or mod.target
+            targetName = LocalizeAttributeName(attribData, mod.target, client)
         elseif (mod.type == "skill") then
             local skill = skillsByID[mod.target]
             targetName = skill and skill.name or mod.target
@@ -1340,7 +1359,7 @@ PLUGIN.FormatTraitModifiers = function(trait)
 
         for _, aid in ipairs(trait.advantageAttributes) do
             local attribData = ix.attributes.list[aid]
-            attribNames[#attribNames + 1] = attribData and L(attribData.name) or aid
+            attribNames[#attribNames + 1] = LocalizeAttributeName(attribData, aid, client)
         end
 
         parts[#parts + 1] = "advantage on " .. table.concat(attribNames, ", ") .. " rolls"
@@ -1351,7 +1370,7 @@ PLUGIN.FormatTraitModifiers = function(trait)
 
         for _, aid in ipairs(trait.disadvantageAttributes) do
             local attribData = ix.attributes.list[aid]
-            attribNames[#attribNames + 1] = attribData and L(attribData.name) or aid
+            attribNames[#attribNames + 1] = LocalizeAttributeName(attribData, aid, client)
         end
 
         parts[#parts + 1] = "disadvantage on " .. table.concat(attribNames, ", ") .. " rolls"
