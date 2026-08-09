@@ -403,7 +403,41 @@ local function GetAttributeRollMode(character, attribID)
     return "normal"
 end
 
-local function PerformAttributeRoll(client, attribID, attribName, modifier)
+-- a player can deliberately force a single roll's mode from the character sheet, overriding whatever
+-- advantage or disadvantage their traits and conditions would normally produce. the roll commands
+-- carry this as a string; anything unrecognized (or absent) falls through to the usual behavior, so
+-- every existing caller that passes no mode at all keeps working exactly as before
+local forcedRollModes = {
+    advantage = "advantage",
+    neutral = "normal",
+    normal = "normal",
+    disadvantage = "disadvantage"
+}
+
+-- keyed by the resolved mode rather than the input word, so "neutral" and "normal" both land here
+local forcedRollLabels = {
+    advantage = " (Guaranteed Advantage)",
+    normal = " (Guaranteed Neutral)",
+    disadvantage = " (Guaranteed Disadvantage)"
+}
+
+-- formats one signed term of the roll readout, e.g. " + 5 (Modifier)" or " - 2 (Automatic Weapons)".
+-- negative values print as a subtraction rather than "+ -2", which is what you get from a hardcoded
+-- " + %d". applies to skill and attribute totals as much as to modifiers - a character with enough
+-- trait or condition penalties can easily end up with a negative total in either
+local function FormatRollTerm(amount, label)
+    return string.format(" %s %d (%s)", amount >= 0 and "+" or "-", math.abs(amount), label)
+end
+
+local function ResolveForcedRollMode(forceMode)
+    if (!isstring(forceMode)) then
+        return nil
+    end
+
+    return forcedRollModes[string.lower(string.Trim(forceMode))]
+end
+
+local function PerformAttributeRoll(client, attribID, attribName, modifier, forceMode)
     local character = client:GetCharacter()
 
     if (!character) then
@@ -413,7 +447,10 @@ local function PerformAttributeRoll(client, attribID, attribName, modifier)
     -- now uses the effective (trait-adjusted) attribute value, so attribute traits actually affect rolls, not just the sheet's display
     local value = GetEffectiveAttribute(character, attribID)
 
-    local rollMode = GetAttributeRollMode(character, attribID)
+    -- a forced mode wins outright - GetAttributeRollMode isn't even consulted, so a player who picks
+    -- Guaranteed Advantage gets it even when every trait they have says otherwise
+    local forcedMode = ResolveForcedRollMode(forceMode)
+    local rollMode = forcedMode or GetAttributeRollMode(character, attribID)
     local rollA, rollB, diceRoll
 
     if (rollMode == "advantage") then
@@ -448,16 +485,20 @@ local function PerformAttributeRoll(client, attribID, attribName, modifier)
         segments[#segments + 1] = {color = white, text = tostring(diceRoll)}
     end
 
-    segments[#segments + 1] = {color = white, text = string.format(" + %d (%s)", value, attribName)}
+    segments[#segments + 1] = {color = white, text = FormatRollTerm(value, attribName)}
 
     if (modifier and modifier != 0) then
         total = total + modifier
-        segments[#segments + 1] = {color = white, text = string.format(" %s %d (Modifier)", modifier >= 0 and "+" or "-", math.abs(modifier))}
+        segments[#segments + 1] = {color = white, text = FormatRollTerm(modifier, "Modifier")}
     end
 
     segments[#segments + 1] = {color = white, text = string.format(" = %d", total)}
 
-    if (rollMode == "advantage") then
+    -- a forced mode is always called out by name, including Guaranteed Neutral, which prints nothing
+    -- under the normal path - the point is for everyone reading chat to see the choice was deliberate
+    if (forcedMode) then
+        segments[#segments + 1] = {color = white, text = forcedRollLabels[forcedMode]}
+    elseif (rollMode == "advantage") then
         segments[#segments + 1] = {color = white, text = " (Advantage)"}
     elseif (rollMode == "disadvantage") then
         segments[#segments + 1] = {color = white, text = " (Disadvantage)"}
@@ -473,17 +514,21 @@ local function PerformAttributeRoll(client, attribID, attribName, modifier)
     ix.log.Add(client, "roll", total, 20 + value)
 end
 
--- generic command: /RollAttribute <name> [modifier]
+-- generic command: /RollAttribute <name> [modifier] [mode]
+-- mode is "advantage", "neutral", or "disadvantage" and must come *after* a modifier, since Helix
+-- drops a nil optional argument out of the list entirely rather than leaving a gap - omitting the
+-- modifier would slide the mode into its slot. the character sheet always sends both for this reason
 ix.command.Add("RollAttribute", {
-    description = "Rolls a 1d20 plus the given attribute, with an optional modifier.",
+    description = "Rolls a 1d20 plus the given attribute, with an optional modifier and an optional forced roll mode (advantage/neutral/disadvantage).",
     arguments = {
         ix.type.string,
-        bit.bor(ix.type.number, ix.type.optional)
+        bit.bor(ix.type.number, ix.type.optional),
+        bit.bor(ix.type.string, ix.type.optional)
     },
-    OnRun = function(self, client, attribName, modifier)
+    OnRun = function(self, client, attribName, modifier, forceMode)
         for k, v in pairs(ix.attributes.list) do
             if (ix.util.StringMatches(L(v.name, client), attribName) or ix.util.StringMatches(k, attribName)) then
-                PerformAttributeRoll(client, k, L(v.name, client), modifier)
+                PerformAttributeRoll(client, k, L(v.name, client), modifier, forceMode)
                 return
             end
         end
@@ -505,13 +550,16 @@ local attributeShorthands = {
 
 for command, attribID in pairs(attributeShorthands) do
     ix.command.Add(command, {
-        description = "Rolls a 1d20 plus your " .. attribID .. ", with an optional modifier.",
-        arguments = bit.bor(ix.type.number, ix.type.optional),
-        OnRun = function(self, client, modifier)
+        description = "Rolls a 1d20 plus your " .. attribID .. ", with an optional modifier and an optional forced roll mode (advantage/neutral/disadvantage).",
+        arguments = {
+            bit.bor(ix.type.number, ix.type.optional),
+            bit.bor(ix.type.string, ix.type.optional)
+        },
+        OnRun = function(self, client, modifier, forceMode)
             local attribute = ix.attributes.list[attribID]
 
             if (attribute) then
-                PerformAttributeRoll(client, attribID, L(attribute.name, client), modifier)
+                PerformAttributeRoll(client, attribID, L(attribute.name, client), modifier, forceMode)
             end
         end
     })
@@ -728,7 +776,9 @@ end
 -- to force a skill check server-side (e.g. the scavenging plugin's search entities); announces the
 -- roll in chat exactly like /RollSkill and returns the total result, the raw die face, and the skill
 -- definition so callers can react to the outcome (e.g. a natural 20)
-function PerformSkillCheck(client, skillID, modifier)
+-- forceMode ("advantage"/"neutral"/"disadvantage") overrides the character's traits and conditions for
+-- this one roll; leave it nil - as every non-UI caller does - for the usual behavior
+function PerformSkillCheck(client, skillID, modifier, forceMode)
     local character = client:GetCharacter()
 
     if (!character) then
@@ -748,7 +798,10 @@ function PerformSkillCheck(client, skillID, modifier)
     local traitBonus = GetTraitSkillBonus(character, skillData.id)
     local flatBonus = attribMod + invested + traitBonus
 
-    local rollMode = GetSkillRollMode(character, skillData)
+    -- a forced mode wins outright - GetSkillRollMode isn't even consulted, so a player who picks
+    -- Guaranteed Advantage gets it even when every trait they have says otherwise
+    local forcedMode = ResolveForcedRollMode(forceMode)
+    local rollMode = forcedMode or GetSkillRollMode(character, skillData)
     local rollA, rollB, diceRoll
 
     if (rollMode == "advantage") then
@@ -790,17 +843,21 @@ function PerformSkillCheck(client, skillID, modifier)
         segments[#segments + 1] = {color = white, text = tostring(diceRoll)}
     end
 
-    segments[#segments + 1] = {color = white, text = string.format(" + %d (%s)", flatBonus, skillData.name)}
+    segments[#segments + 1] = {color = white, text = FormatRollTerm(flatBonus, skillData.name)}
 
     if (modifier != 0) then
         result = result + modifier
-        segments[#segments + 1] = {color = white, text = string.format(" %s %d (Modifier)", modifier >= 0 and "+" or "-", math.abs(modifier))}
+        segments[#segments + 1] = {color = white, text = FormatRollTerm(modifier, "Modifier")}
     end
 
     segments[#segments + 1] = {color = white, text = string.format(" = %d", result)}
 
+    -- nothing is tagged on a forced natural 1, including a guaranteed mode: the auto-fail trait threw
+    -- the dice out entirely, and printing "(Guaranteed Advantage)" next to a 1 would just read as a bug
     if (!forcedFail) then
-        if (rollMode == "advantage") then
+        if (forcedMode) then
+            segments[#segments + 1] = {color = white, text = forcedRollLabels[forcedMode]}
+        elseif (rollMode == "advantage") then
             segments[#segments + 1] = {color = white, text = " (Advantage)"}
         elseif (rollMode == "disadvantage") then
             segments[#segments + 1] = {color = white, text = " (Disadvantage)"}
@@ -819,13 +876,15 @@ function PerformSkillCheck(client, skillID, modifier)
     return result, diceRoll, skillData
 end
 
+-- see the note on /RollAttribute: the mode has to follow a modifier, so the sheet always sends both
 ix.command.Add("RollSkill", {
-    description = "Rolls a 1d20 plus a skill's total (modifier + invested points).",
+    description = "Rolls a 1d20 plus a skill's total (modifier + invested points), with an optional forced roll mode (advantage/neutral/disadvantage).",
     arguments = {
         ix.type.string,
-        bit.bor(ix.type.number, ix.type.optional)
+        bit.bor(ix.type.number, ix.type.optional),
+        bit.bor(ix.type.string, ix.type.optional)
     },
-    OnRun = function(self, client, skillName, modifier)
+    OnRun = function(self, client, skillName, modifier, forceMode)
         local skillData = FindSkill(skillName)
 
         if (!skillData) then
@@ -833,7 +892,7 @@ ix.command.Add("RollSkill", {
             return
         end
 
-        PerformSkillCheck(client, skillData.id, modifier)
+        PerformSkillCheck(client, skillData.id, modifier, forceMode)
     end
 })
 

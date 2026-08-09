@@ -187,25 +187,85 @@ local function BuildRelationshipsPage(parent, data)
     end
 end
 
-local function PromptRoll(commandName, subjectName)
-    Derma_StringRequest(
-        "Roll " .. subjectName,
-        "Enter a modifier (optional, e.g. 3 or -2):",
-        "",
-        function(text)
-            text = string.Trim(text)
-            local modifier = tonumber(text)
+-- the four ways a roll can be made. "Standard Roll" sends no mode at all, leaving the server to work
+-- out advantage/disadvantage from traits and conditions exactly as it always has; the three Guaranteed
+-- options override that entirely for the one roll and get called out by name in chat
+local ROLL_MODE_OPTIONS = {
+    {
+        label = "Standard Roll",
+        tooltip = "Uses whatever advantage or disadvantage your traits and conditions give you."
+    },
+    {
+        label = "Guaranteed Advantage",
+        mode = "advantage",
+        tooltip = "Roll twice and take the higher, no matter what your traits or conditions say."
+    },
+    {
+        label = "Guaranteed Neutral",
+        mode = "neutral",
+        tooltip = "Roll a single die, ignoring any advantage or disadvantage you would normally have."
+    },
+    {
+        label = "Guaranteed Disadvantage",
+        mode = "disadvantage",
+        tooltip = "Roll twice and take the lower, no matter what your traits or conditions say."
+    }
+}
 
-            if (modifier) then
-                ix.command.Send(commandName, subjectName, modifier)
-            else
-                ix.command.Send(commandName, subjectName)
-            end
-        end,
-        nil,
-        "Roll",
-        "Cancel"
-    )
+local function PromptRoll(commandName, subjectName)
+    local popup = vgui.Create("DFrame")
+    popup:SetSize(300, 220)
+    popup:Center()
+    popup:SetTitle("Roll " .. subjectName)
+    popup:MakePopup()
+
+    local label = popup:Add("DLabel")
+    label:SetPos(10, 32)
+    label:SetSize(280, 18)
+    label:SetText("Modifier (optional, e.g. 3 or -2):")
+
+    local modifierEntry = popup:Add("DTextEntry")
+    modifierEntry:SetPos(10, 52)
+    modifierEntry:SetSize(280, 24)
+    -- deliberately not SetNumeric(true) - that blocks the minus sign, so negative modifiers
+    -- couldn't be typed at all
+    modifierEntry:RequestFocus()
+
+    local function SendRoll(mode)
+        -- always send an explicit number rather than omitting it. Helix collapses a nil optional
+        -- argument out of the argument list instead of leaving a gap (sh_command.lua's
+        -- `result[#result + 1] = value`), so skipping the modifier would slide the mode into its slot
+        local modifier = tonumber(string.Trim(modifierEntry:GetValue())) or 0
+
+        if (mode) then
+            ix.command.Send(commandName, subjectName, modifier, mode)
+        else
+            ix.command.Send(commandName, subjectName, modifier)
+        end
+
+        popup:Close()
+    end
+
+    local y = 86
+
+    for _, option in ipairs(ROLL_MODE_OPTIONS) do
+        local button = popup:Add("DButton")
+        button:SetPos(10, y)
+        button:SetSize(280, 26)
+        button:SetText(option.label)
+        button:SetTooltip(option.tooltip)
+
+        button.DoClick = function()
+            SendRoll(option.mode)
+        end
+
+        y = y + 30
+    end
+
+    -- enter still rolls straight away, matching how the old single-field prompt behaved
+    modifierEntry.OnEnter = function()
+        SendRoll(nil)
+    end
 end
 
 local INFO_FIELDS = {
@@ -432,8 +492,12 @@ local function BuildSkillsPage(parent, data)
             row.Paint = function() end
 
             local button = row:Add("DButton")
-            button:SetText(string.format("%s = %d [+%d] (%s[%d] + %s[%d])",
-                skill.name, skill.points, skill.modifier,
+            -- the bracketed modifier carries its own sign, so a negative one reads "[-1]" instead of
+            -- the "[+-1]" a hardcoded "+" produces. the attribute brackets stay unsigned - those are
+            -- raw values rather than bonuses, so "[-1]" and "[1]" already read correctly
+            button:SetText(string.format("%s = %d [%s%d] (%s[%d] + %s[%d])",
+                skill.name, skill.points,
+                skill.modifier >= 0 and "+" or "-", math.abs(skill.modifier),
                 skill.attribOne.name, skill.attribOne.value,
                 skill.attribTwo.name, skill.attribTwo.value
             ))
