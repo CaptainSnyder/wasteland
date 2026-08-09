@@ -289,6 +289,18 @@ PLUGIN.conditions = {
         hideFromList = true
     },
     {
+        id = "secondwind",
+        name = "Second Wind",
+        description = "Your legs have found a rhythm and your lungs are keeping up with them, for now.",
+        durationHours = 1 / 60,
+        category = "other",
+        regionScope = "general",
+        modifiers = {},
+        -- only ever granted through /athletics, which supplies its own effect text carrying the
+        -- rolled percentage - hidden from the reference list since the effect varies every time
+        hideFromList = true
+    },
+    {
         id = "cigarette",
         name = "Nicotine Buzz",
         description = "A quick smoke steadies your nerves, if only for a little while.",

@@ -252,7 +252,10 @@ end
 -- region is optional and only meaningful for "choice"/"any" scope conditions - see IsRegionValidForCondition
 -- modifiersOverride lets a caller supply per-instance modifiers instead of the template's static ones -
 -- used by /pray, since which skill it boosts (and by how much) varies by use and by the Religious trait
-function ApplyCharacterCondition(character, conditionID, durationHoursOverride, region, modifiersOverride)
+-- effectTextOverride is for conditions whose effect is computed per use rather than fixed on the
+-- template - /athletics rolls a different speed percentage every time, and that number has to travel
+-- with the instance for the sheet to be able to show it
+function ApplyCharacterCondition(character, conditionID, durationHoursOverride, region, modifiersOverride, effectTextOverride)
     local conditionDef = conditionsByID[conditionID]
 
     if (!conditionDef) then
@@ -297,6 +300,7 @@ function ApplyCharacterCondition(character, conditionID, durationHoursOverride, 
         existing.expiresAt = now + durationSeconds
         existing.region = resolvedRegion
         existing.modifiers = modifiersOverride or existing.modifiers
+        existing.effectText = effectTextOverride or existing.effectText
     else
         table.insert(conditions, {
             id = tostring(now) .. "_" .. tostring(math.random(1000, 9999)),
@@ -305,6 +309,7 @@ function ApplyCharacterCondition(character, conditionID, durationHoursOverride, 
             description = conditionDef.description,
             expiresAt = now + durationSeconds,
             modifiers = modifiersOverride or conditionDef.modifiers,
+            effectText = effectTextOverride,
             region = resolvedRegion
         })
     end
@@ -1176,8 +1181,8 @@ ix.command.Add("FirstAid", {
     end
 })
 
--- a short burst of movement speed. the percentage is half the roll total, so a middling roll is worth
--- a few percent and only a 50+ total reaches the cap
+-- a short burst of movement speed. the percentage is the roll total itself, so anything from 25 up
+-- reaches the cap - well within reach of a trained character, which is the point
 local ATHLETICS_DURATION = 60
 local ATHLETICS_COOLDOWN = 10 * 60
 -- a wasted attempt only costs a minute, the same way /firstaid handles a failed roll
@@ -1229,20 +1234,35 @@ ix.command.Add("Athletics", {
             return
         end
 
-        local percent = math.min(result / 2, ATHLETICS_MAX_PERCENT)
+        local percent = math.min(result, ATHLETICS_MAX_PERCENT)
         local multiplier = 1 + (percent / 100)
 
         client:SetWalkSpeed(ix.config.Get("walkSpeed") * multiplier)
         client:SetRunSpeed(ix.config.Get("runSpeed") * multiplier)
         character:SetData("athleticsCooldownUntil", now + ATHLETICS_COOLDOWN)
 
-        client:Notify(string.format(
-            "You hit your stride - %s%% faster for the next minute.", math.Round(percent, 1)
-        ))
+        -- shown under Other Conditions while it lasts. the percentage is rolled fresh each time, so
+        -- it rides along on the instance rather than being fixed on the condition template
+        ApplyCharacterCondition(
+            character, "secondwind", ATHLETICS_DURATION / 3600, nil, nil,
+            string.format("moving %d%% faster", percent)
+        )
+
+        client:Notify(string.format("You hit your stride - %d%% faster for the next minute.", percent))
 
         -- the cooldown is ten times the duration, so a second boost can never overlap this timer
         timer.Simple(ATHLETICS_DURATION, function()
             ResetMovementSpeed(client)
+
+            -- cleared alongside the speed so the two always end together, rather than leaving the
+            -- condition sitting there for the second or two until it expires on its own
+            if (IsValid(client)) then
+                local activeCharacter = client:GetCharacter()
+
+                if (activeCharacter == character) then
+                    RemoveCharacterCondition(character, "secondwind")
+                end
+            end
         end)
     end
 })
@@ -1799,6 +1819,9 @@ local function SendCharacterSheet(client, target)
                 category = (conditionDef and conditionDef.category) or "health",
                 remainingSeconds = cond.expiresAt and (cond.expiresAt - now) or nil,
                 modifiers = cond.modifiers,
+                -- the instance wins over the template: /athletics writes its rolled percentage onto
+                -- the instance, while everything else just carries whatever the template declared
+                effectText = cond.effectText or (conditionDef and conditionDef.effectText),
                 -- disadvantageSkills lives on the template, not the stored instance, since it never
                 -- varies per-instance the way modifiers can (e.g. /pray's per-use skill target)
                 disadvantageSkills = conditionDef and conditionDef.disadvantageSkills
