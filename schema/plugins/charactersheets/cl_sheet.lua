@@ -117,6 +117,36 @@ local function OpenRelationshipEditor(existing, onSave)
     end
 end
 
+-- a GMod tooltip is one unbroken line at whatever width its text demands, so a few sentences of
+-- relationship notes would run clean off the edge of the screen. wrap it by hand, preserving any
+-- line breaks the player typed themselves rather than flattening the whole thing into one block
+local function WrapTooltipText(text, maxChars)
+    maxChars = maxChars or 55
+
+    local lines = {}
+
+    for paragraph in string.gmatch(text, "[^\r\n]+") do
+        local current = ""
+
+        for word in string.gmatch(paragraph, "%S+") do
+            if (current == "") then
+                current = word
+            elseif (#current + #word + 1 <= maxChars) then
+                current = current .. " " .. word
+            else
+                lines[#lines + 1] = current
+                current = word
+            end
+        end
+
+        if (current != "") then
+            lines[#lines + 1] = current
+        end
+    end
+
+    return table.concat(lines, "\n")
+end
+
 local function BuildRelationshipsPage(parent, data)
     if (data.isOwner) then
         local addButton = parent:Add("DButton")
@@ -161,6 +191,14 @@ local function BuildRelationshipsPage(parent, data)
         nameButton:Dock(FILL)
         nameButton:SetContentAlignment(4)
         nameButton:SetTextInset(8, 0)
+
+        local thoughts = string.Trim(entry.thoughts or "")
+
+        if (thoughts != "") then
+            nameButton:SetTooltip(WrapTooltipText(thoughts))
+        else
+            nameButton:SetTooltip("Nothing written down about them yet.")
+        end
 
         if (data.isOwner) then
             nameButton.DoClick = function()
