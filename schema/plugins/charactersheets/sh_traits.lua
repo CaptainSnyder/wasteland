@@ -1114,6 +1114,164 @@ PLUGIN.traits = {
         description = "Every thought you have arrives on your face a full three seconds before it reaches your mouth, and it always gets there first.",
         tier = 0,
         disadvantageSkills = {"deception"}
+    },
+
+    -- more tier 1 filler, since pulling the drawbacks out to tier 0 left it thin. deliberately modest:
+    -- a clean one is a single +1, and a give-and-take is +2 paid for with a -1 somewhere thematically
+    -- linked. anything stronger belongs in tier 2, which is where the rewards live
+
+    -- clean, no drawback
+    {
+        id = "greenthumb",
+        name = "Green Thumb",
+        description = "You can coax food out of dirt that has absolutely no business growing anything, and you've never fully explained how.",
+        tier = 1,
+        modifiers = {{type = "skill", target = "survival", amount = 1}}
+    },
+    {
+        id = "greasemonkey",
+        name = "Grease Monkey",
+        description = "You were taking things apart before you could read, and putting most of them back together afterward.",
+        tier = 1,
+        modifiers = {{type = "skill", target = "repair", amount = 1}}
+    },
+    {
+        id = "localknowledge",
+        name = "Local Knowledge",
+        description = "You grew up picking over this exact stretch of dirt, and you still remember which piles were worth the walk.",
+        tier = 1,
+        modifiers = {{type = "skill", target = "scavenging", amount = 1}}
+    },
+    {
+        id = "lightsleeper",
+        name = "Light Sleeper",
+        description = "You haven't slept through a night since you were twelve. It has ruined your temper and saved your life about equally often.",
+        tier = 1,
+        modifiers = {{type = "skill", target = "vigilance", amount = 1}}
+    },
+    {
+        id = "bedsidemanner",
+        name = "Bedside Manner",
+        description = "You talk people through it while you work. Half of them come away swearing that was the part that actually helped.",
+        tier = 1,
+        modifiers = {{type = "skill", target = "firstaid", amount = 1}}
+    },
+    {
+        id = "knowsaguy",
+        name = "Knows a Guy",
+        description = "You always know a guy. Nobody has ever met the guy, nobody can describe the guy, but the prices you come back with are real.",
+        tier = 1,
+        modifiers = {{type = "skill", target = "barter", amount = 1}}
+    },
+    {
+        id = "learnedonatractor",
+        name = "Learned on a Tractor",
+        description = "Nothing you've driven since has had fewer wheels or more dignity, and you've never once let that slow you down.",
+        tier = 1,
+        modifiers = {{type = "skill", target = "piloting", amount = 1}}
+    },
+    {
+        id = "hoarderofmanuals",
+        name = "Hoarder of Manuals",
+        description = "You have read every instruction booklet you've ever found, cover to cover, including several in languages you cannot speak.",
+        tier = 1,
+        modifiers = {{type = "skill", target = "nerdstuff", amount = 1}}
+    },
+    {
+        id = "knifework",
+        name = "Knife Work",
+        description = "Years of skinning, gutting, and the occasional disagreement. The motion turns out to be much the same either way.",
+        tier = 1,
+        modifiers = {{type = "skill", target = "melee", amount = 1}}
+    },
+    {
+        id = "takestheblame",
+        name = "Takes the Blame",
+        description = "You step up when something goes wrong, which people remember considerably longer than they remember the mistake itself.",
+        tier = 1,
+        modifiers = {{type = "skill", target = "leadership", amount = 1}}
+    },
+
+    -- give-and-take: a real benefit paid for with a related cost
+    {
+        id = "allbark",
+        name = "All Bark",
+        description = "You can make a grown man reconsider his entire life in one sentence. You cannot, under any circumstances, be pleasant about it.",
+        tier = 1,
+        modifiers = {
+            {type = "skill", target = "hardass", amount = 2},
+            {type = "skill", target = "kissass", amount = -1}
+        }
+    },
+    {
+        id = "yesman",
+        name = "Yes-Man",
+        description = "Agreeing enthusiastically with dangerous people has carried you further than a spine ever would have. You sleep fine.",
+        tier = 1,
+        modifiers = {
+            {type = "skill", target = "kissass", amount = 2},
+            {type = "skill", target = "hardass", amount = -1}
+        }
+    },
+    {
+        id = "earsareshot",
+        name = "Ears Are Shot",
+        description = "You know exactly how much to use. You worked it out by using far too much, several times, and your hearing settled the bill.",
+        tier = 1,
+        modifiers = {
+            {type = "skill", target = "explosives", amount = 2},
+            {type = "skill", target = "vigilance", amount = -1}
+        }
+    },
+    {
+        id = "neverbeenclose",
+        name = "Never Been Close",
+        description = "You've killed a great many people. You have never once been near enough to smell one, and you intend to keep that record clean.",
+        tier = 1,
+        modifiers = {
+            {type = "skill", target = "snipers", amount = 2},
+            {type = "skill", target = "brawling", amount = -1}
+        }
+    },
+    {
+        id = "subtleasabrick",
+        name = "Subtle as a Brick",
+        description = "Your answer to most problems weighs forty pounds and announces its arrival from roughly a mile out.",
+        tier = 1,
+        modifiers = {
+            {type = "skill", target = "bigguns", amount = 2},
+            {type = "skill", target = "sneakyshit", amount = -1}
+        }
+    },
+    {
+        id = "solidstateonly",
+        name = "Solid State Only",
+        description = "You understand circuits perfectly and engines not at all. Anything with a moving part strikes you as a personal insult.",
+        tier = 1,
+        modifiers = {
+            {type = "skill", target = "energyweapons", amount = 2},
+            {type = "skill", target = "repair", amount = -1}
+        }
+    },
+    {
+        id = "allbooksnolegs",
+        name = "All Books, No Legs",
+        description = "You know precisely how the human body works, in detail, and have gone your entire life without meaningfully using yours.",
+        tier = 1,
+        modifiers = {
+            {type = "skill", target = "nerdstuff", amount = 2},
+            {type = "skill", target = "athletics", amount = -1}
+        }
+    },
+    {
+        id = "housemoney",
+        name = "House Money",
+        description = "Offered the choice, you would rather gamble someone for it than haggle with them over it. You are markedly better at the first thing.",
+        tier = 1,
+        modifiers = {
+            {type = "skill", target = "gambling", amount = 2},
+            {type = "skill", target = "barter", amount = -1}
+        }
     }
 }
 
