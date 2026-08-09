@@ -699,8 +699,8 @@ PLUGIN.traits = {
         description = "You burn through food fast, no matter how much you eat.",
         tier = 1,
         effectText = "hunger drains 25% faster"
-        -- hunger drains 25% faster - checked directly in PostPlayerLoadout (drift-needings/sv_hooks.lua),
-        -- not a modifier
+        -- hunger drains 25% faster - checked directly in GetHungerInterval (drift-needings/sv_hooks.lua),
+        -- which the ixNeedsDecayTick timer re-reads every tick, so it applies without a respawn
     },
     {
         id = "smallappetite",
@@ -708,8 +708,8 @@ PLUGIN.traits = {
         description = "You've always gotten by on less food than most people need.",
         tier = 2,
         effectText = "hunger drains 25% slower"
-        -- hunger drains 25% slower - checked directly in PostPlayerLoadout (drift-needings/sv_hooks.lua),
-        -- not a modifier
+        -- hunger drains 25% slower - checked directly in GetHungerInterval (drift-needings/sv_hooks.lua),
+        -- which the ixNeedsDecayTick timer re-reads every tick, so it applies without a respawn
     },
     {
         id = "unquenchablethirst",
@@ -717,8 +717,8 @@ PLUGIN.traits = {
         description = "No matter how much you drink, you're parched again before long.",
         tier = 1,
         effectText = "thirst drains 25% faster"
-        -- thirst drains 25% faster - checked directly in PostPlayerLoadout (drift-needings/sv_hooks.lua),
-        -- not a modifier
+        -- thirst drains 25% faster - checked directly in GetThirstInterval (drift-needings/sv_hooks.lua),
+        -- which the ixNeedsDecayTick timer re-reads every tick, so it applies without a respawn
     },
     {
         id = "camelsconstitution",
@@ -726,8 +726,8 @@ PLUGIN.traits = {
         description = "Your body holds onto water far better than most people's.",
         tier = 2,
         effectText = "thirst drains 25% slower"
-        -- thirst drains 25% slower - checked directly in PostPlayerLoadout (drift-needings/sv_hooks.lua),
-        -- not a modifier
+        -- thirst drains 25% slower - checked directly in GetThirstInterval (drift-needings/sv_hooks.lua),
+        -- which the ixNeedsDecayTick timer re-reads every tick, so it applies without a respawn
     },
     {
         id = "wastenotwantnot",
