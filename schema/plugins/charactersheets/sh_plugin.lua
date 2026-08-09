@@ -1489,6 +1489,9 @@ ix.command.Add("Rally", {
         -- the one case where the caller is a valid target
         local selfOnly = GetTraitWithFlag(character, "ralliesSelfOnly") != nil
         local candidates = {}
+        -- counted separately from the reached total: an Anarchist in earshot was never rallied, so
+        -- they mustn't inflate the count, but the leader should still hear that someone tuned them out
+        local ignored = 0
 
         if (selfOnly) then
             candidates[1] = client
@@ -1499,10 +1502,12 @@ ix.command.Add("Rally", {
 
             for _, ply in ipairs(player.GetAll()) do
                 if (ply != client and IsValid(ply) and ply:Alive() and ply:GetCharacter()) then
-                    -- an Anarchist in earshot simply isn't listening
-                    if (origin:Distance(ply:GetPos()) <= radius
-                        and !GetTraitWithFlag(ply:GetCharacter(), "refusesRally")) then
-                        candidates[#candidates + 1] = ply
+                    if (origin:Distance(ply:GetPos()) <= radius) then
+                        if (GetTraitWithFlag(ply:GetCharacter(), "refusesRally")) then
+                            ignored = ignored + 1
+                        else
+                            candidates[#candidates + 1] = ply
+                        end
                     end
                 end
             end
@@ -1554,14 +1559,22 @@ ix.command.Add("Rally", {
                 "You talk yourself into it - advantage on %s for the next 5 minutes.", selfSummary
             ))
         elseif (reached == 0) then
-            client:Notify("You call out, but there's nobody in earshot to hear it.")
+            client:Notify(ignored > 0
+                and "You call out. Nobody within earshot is interested in being told what to do."
+                or "You call out, but there's nobody in earshot to hear it.")
         else
             -- the leader isn't told which second skill each person got; that's theirs to report back
-            client:Notify(string.format(
+            local message = string.format(
                 "You rally %d %s - advantage on %s for the next 5 minutes%s.",
                 reached, reached == 1 and "person" or "people", skillData.name,
                 hasBonus and ", and something else besides for each of them" or ""
-            ))
+            )
+
+            if (ignored > 0) then
+                message = message .. string.format(" %d didn't really listen.", ignored)
+            end
+
+            client:Notify(message)
         end
     end
 })

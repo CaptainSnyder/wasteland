@@ -1108,6 +1108,9 @@ PLUGIN.traits = {
         description = "You don't just tell people what to do, you make them believe it's worth doing. Whatever you call for, something else in them sharpens up alongside it.",
         tier = 2,
         effectText = "/rally also grants each person advantage on a random second skill from the same category",
+        -- an Anarchist only ever rallies themselves, so there'd be nobody to inspire. checked in both
+        -- directions by GetConflictingTrait, so Anarchist needs no matching entry
+        conflictsWith = {"anarchist"},
         -- read directly by the Rally command (charactersheets/sh_plugin.lua), not a modifier
         rallyBonusSkillInCategory = true
     },
