@@ -835,7 +835,8 @@ local function AddConditionCard(scroll, cond)
     nameLabel:Dock(FILL)
 
     local timeLabel = titleRow:Add("DLabel")
-    timeLabel:SetText(FormatConditionDuration(cond.remainingSeconds))
+    -- blank rather than absent, so the name label keeps its docked layout either way
+    timeLabel:SetText(cond.hideTimer and "" or FormatConditionDuration(cond.remainingSeconds))
     timeLabel:SetFont("DermaDefaultBold")
     timeLabel:SetTextColor(Color(180, 180, 180))
     timeLabel:Dock(RIGHT)

@@ -1914,6 +1914,8 @@ local function SendCharacterSheet(client, target)
                 region = displayRegion,
                 category = (conditionDef and conditionDef.category) or "health",
                 remainingSeconds = cond.expiresAt and (cond.expiresAt - now) or nil,
+                -- suppresses the countdown for conditions whose expiry is only a refresh buffer
+                hideTimer = conditionDef and conditionDef.hideTimer,
                 modifiers = cond.modifiers,
                 -- the instance wins over the template: /athletics writes its rolled percentage onto
                 -- the instance, while everything else just carries whatever the template declared
@@ -2373,8 +2375,26 @@ if (SERVER) then
     end)
 end
 
+-- how long a hunger or thirst tier has left before it gives way to the next one down, in hours. the
+-- value drops one point per decay interval and the tier ends the moment it falls below its floor, so
+-- that's the whole points still to lose plus whatever remains of the point currently counting down.
+-- returns nil for the bottom tier, which has nothing left to fall into - those keep the template's own
+-- short duration as a refresh buffer, and hide the countdown entirely on the sheet.
+-- file scope rather than inside either tick, since the hunger and thirst sweeps are separate blocks
+local function GetTierRemainingHours(character, tier, value, interval, lastDecayKey)
+    if (tier.min <= 0) then
+        return nil
+    end
+
+    local pointsLeft = math.max(value - tier.min + 1, 1)
+    local intoCurrentPoint = math.Clamp(os.time() - character:GetData(lastDecayKey, os.time()), 0, interval)
+
+    return (((pointsLeft - 1) * interval) + (interval - intoCurrentPoint)) / 3600
+end
+
 if (SERVER) then
-    local HUNGER_TICK_INTERVAL = 60 -- check every minute
+    -- short so eating registers promptly; the sweep is only a table lookup per player
+    local HUNGER_TICK_INTERVAL = 10
 
     -- ordered highest threshold first; character:GetHunger() is 0-100 (see the drift-needings plugin)
     local hungerTiers = {
@@ -2389,8 +2409,9 @@ if (SERVER) then
     }
 
     -- refreshes each player's hunger-tier condition every tick based on their current hunger value,
-    -- swapping to a different tier's condition the moment they cross a threshold; each condition's
-    -- own durationHours (3 minutes) is just a buffer in case this timer ever misses a beat
+    -- swapping to a different tier's condition the moment they cross a threshold. the condition's
+    -- expiry is set to when the tier itself runs out, so the sheet's "remaining" is the time until
+    -- they drop a tier rather than an arbitrary refresh window
     timer.Create("ixHungerTierTick", HUNGER_TICK_INTERVAL, 0, function()
         for _, client in ipairs(player.GetAll()) do
             local character = client:GetCharacter()
@@ -2401,19 +2422,23 @@ if (SERVER) then
 
                 for _, tier in ipairs(hungerTiers) do
                     if (hunger >= tier.min) then
-                        currentTier = tier.id
+                        currentTier = tier
                         break
                     end
                 end
 
                 if (currentTier) then
                     for _, tier in ipairs(hungerTiers) do
-                        if (tier.id != currentTier) then
+                        if (tier.id != currentTier.id) then
                             RemoveCharacterCondition(character, tier.id)
                         end
                     end
 
-                    ApplyCharacterCondition(character, currentTier)
+                    -- guarded: drift-needings owns the interval, and this plugin loads first
+                    local interval = GetCharacterHungerInterval and GetCharacterHungerInterval(character) or 720
+
+                    ApplyCharacterCondition(character, currentTier.id,
+                        GetTierRemainingHours(character, currentTier, hunger, interval, "lastHungerDecay"))
                 end
             end
         end
@@ -2421,7 +2446,8 @@ if (SERVER) then
 end
 
 if (SERVER) then
-    local THIRST_TICK_INTERVAL = 60 -- check every minute
+    -- matches the hunger sweep; see the comment there
+    local THIRST_TICK_INTERVAL = 10
 
     -- ordered highest threshold first; character:GetThirst() is 0-100 (see the drift-needings plugin)
     local thirstTiers = {
@@ -2448,19 +2474,23 @@ if (SERVER) then
 
                 for _, tier in ipairs(thirstTiers) do
                     if (thirst >= tier.min) then
-                        currentTier = tier.id
+                        currentTier = tier
                         break
                     end
                 end
 
                 if (currentTier) then
                     for _, tier in ipairs(thirstTiers) do
-                        if (tier.id != currentTier) then
+                        if (tier.id != currentTier.id) then
                             RemoveCharacterCondition(character, tier.id)
                         end
                     end
 
-                    ApplyCharacterCondition(character, currentTier)
+                    -- guarded: drift-needings owns the interval, and this plugin loads first
+                    local interval = GetCharacterThirstInterval and GetCharacterThirstInterval(character) or 360
+
+                    ApplyCharacterCondition(character, currentTier.id,
+                        GetTierRemainingHours(character, currentTier, thirst, interval, "lastThirstDecay"))
                 end
             end
         end

@@ -447,6 +447,9 @@ PLUGIN.conditions = {
         durationHours = 3 / 60,
         category = "health",
         regionScope = "general",
+        -- rock bottom: there's no tier below this to count down to, so the duration is only a refresh
+        -- buffer and showing it as "remaining" would be meaningless
+        hideTimer = true,
         modifiers = {
             {type = "allAttributes", amount = -5}
         },
@@ -546,6 +549,8 @@ PLUGIN.conditions = {
         durationHours = 3 / 60,
         category = "health",
         regionScope = "general",
+        -- see Dying of Starvation: nothing below this, so there's no countdown worth showing
+        hideTimer = true,
         modifiers = {
             {type = "allAttributes", amount = -5}
         },

@@ -47,6 +47,12 @@ local function GetHungerInterval( character )
     return 720
 end
 
+-- exposed as globals for the hunger and thirst tier conditions over in the charactersheets plugin,
+-- which need the same intervals to work out how long a tier has left before it gives way to the next.
+-- globals because locals don't cross files, matching how the rest of the schema shares functions
+GetCharacterHungerInterval = GetHungerInterval
+GetCharacterThirstInterval = GetThirstInterval
+
 -- replaces the old per-player named timers (which baked a fixed interval in at spawn) with a single
 -- global sweep every 10 seconds; each player's actual decay interval is recomputed from their
 -- current traits on every check, so a trait granted or removed mid-life applies on the very next
