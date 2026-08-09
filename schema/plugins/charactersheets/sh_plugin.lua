@@ -252,10 +252,12 @@ end
 -- region is optional and only meaningful for "choice"/"any" scope conditions - see IsRegionValidForCondition
 -- modifiersOverride lets a caller supply per-instance modifiers instead of the template's static ones -
 -- used by /pray, since which skill it boosts (and by how much) varies by use and by the Religious trait
--- effectTextOverride is for conditions whose effect is computed per use rather than fixed on the
--- template - /athletics rolls a different speed percentage every time, and that number has to travel
--- with the instance for the sheet to be able to show it
-function ApplyCharacterCondition(character, conditionID, durationHoursOverride, region, modifiersOverride, effectTextOverride)
+-- `extra` carries per-instance overrides for conditions whose effect is decided at the moment they're
+-- applied rather than fixed on the template:
+--   effectText      - /athletics rolls a different speed percentage every time
+--   advantageSkills - /rally grants advantage on whichever skill the leader called
+-- both travel with the instance, so two characters can hold the same condition doing different things
+function ApplyCharacterCondition(character, conditionID, durationHoursOverride, region, modifiersOverride, extra)
     local conditionDef = conditionsByID[conditionID]
 
     if (!conditionDef) then
@@ -296,11 +298,14 @@ function ApplyCharacterCondition(character, conditionID, durationHoursOverride, 
         end
     end
 
+    extra = extra or {}
+
     if (existing) then
         existing.expiresAt = now + durationSeconds
         existing.region = resolvedRegion
         existing.modifiers = modifiersOverride or existing.modifiers
-        existing.effectText = effectTextOverride or existing.effectText
+        existing.effectText = extra.effectText or existing.effectText
+        existing.advantageSkills = extra.advantageSkills or existing.advantageSkills
     else
         table.insert(conditions, {
             id = tostring(now) .. "_" .. tostring(math.random(1000, 9999)),
@@ -309,7 +314,8 @@ function ApplyCharacterCondition(character, conditionID, durationHoursOverride, 
             description = conditionDef.description,
             expiresAt = now + durationSeconds,
             modifiers = modifiersOverride or conditionDef.modifiers,
-            effectText = effectTextOverride,
+            effectText = extra.effectText,
+            advantageSkills = extra.advantageSkills,
             region = resolvedRegion
         })
     end
@@ -820,6 +826,12 @@ local function GetSkillRollMode(character, skill)
             end
 
             if (conditionDef.advantageSkills and table.HasValue(conditionDef.advantageSkills, skill.id)) then
+                hasAdvantage = true
+            end
+
+            -- the instance can carry its own list: /rally picks the skill at the moment it's called,
+            -- so it can't be declared on the shared template the way a fixed condition's would be
+            if (cond.advantageSkills and table.HasValue(cond.advantageSkills, skill.id)) then
                 hasAdvantage = true
             end
 
@@ -1341,7 +1353,7 @@ ix.command.Add("Athletics", {
         -- it rides along on the instance rather than being fixed on the condition template
         ApplyCharacterCondition(
             character, "secondwind", ATHLETICS_DURATION / 3600, nil, nil,
-            string.format("moving %d%% faster", percent)
+            {effectText = string.format("moving %d%% faster", percent)}
         )
 
         client:Notify(string.format("You hit your stride - %d%% faster for the next minute.", percent))
@@ -1360,6 +1372,138 @@ ix.command.Add("Athletics", {
                 end
             end
         end)
+    end
+})
+
+-- Rally never affects the caller. That's the whole point of the skill: it's the one thing on the sheet
+-- that does nothing for you alone, which is what separates leadership from a personal buff
+local RALLY_RADIUS_AT_LEVEL_FIVE = 512
+-- an untrained leader can still reach whoever is stood right next to them, rather than the command
+-- succeeding and silently affecting nobody
+local RALLY_MIN_RADIUS = 128
+local RALLY_COOLDOWN = 15 * 60
+local RALLY_FAIL_COOLDOWN = 30
+local RALLY_SUCCESS_THRESHOLD = 10
+local RALLY_STRONG_THRESHOLD = 18
+local RALLY_PARTIAL_TARGETS = 2
+local RALLY_DURATION_PARTIAL = 2 * 60
+local RALLY_DURATION_FULL = 3 * 60
+local RALLY_DURATION_CRIT = 5 * 60
+
+ix.command.Add("Rally", {
+    description = "Rallies nearby allies, granting them advantage on a skill. Never affects you, and reaches further the more Leadership you've invested.",
+    arguments = {
+        ix.type.string
+    },
+    OnRun = function(self, client, skillName)
+        local character = client:GetCharacter()
+
+        if (!character) then
+            return
+        end
+
+        local skillData = FindSkill(skillName)
+
+        if (!skillData) then
+            client:Notify("Could not find that skill.")
+            return
+        end
+
+        local now = os.time()
+        local readyAt = character:GetData("rallyCooldownUntil", 0)
+
+        if (now < readyAt) then
+            client:Notify(string.format(
+                "You've nothing left to say for another %s.", FormatWaitTime(readyAt - now)
+            ))
+
+            return
+        end
+
+        -- Leadership is Social, so the Asshole trait's forced natural 1 already stops this dead
+        local result, diceRoll = PerformSkillCheck(client, "leadership")
+
+        if (!result) then
+            return
+        end
+
+        if (diceRoll == 1) then
+            character:SetData("rallyCooldownUntil", now + RALLY_COOLDOWN)
+            client:Notify("Nobody so much as looks up. Best to let that one go.")
+
+            return
+        end
+
+        if (result < RALLY_SUCCESS_THRESHOLD) then
+            character:SetData("rallyCooldownUntil", now + RALLY_FAIL_COOLDOWN)
+            client:Notify("Your words don't land.")
+
+            return
+        end
+
+        -- scaled off invested points rather than the roll total, so range is something you build
+        -- toward deliberately instead of something you get lucky into
+        local level = character:GetData("skills", {})["leadership"] or 0
+        local radius = math.max(RALLY_MIN_RADIUS, (level / 5) * RALLY_RADIUS_AT_LEVEL_FIVE)
+
+        local isCrit = diceRoll == 20
+        local isStrong = isCrit or result >= RALLY_STRONG_THRESHOLD
+        local duration = isCrit and RALLY_DURATION_CRIT
+            or (isStrong and RALLY_DURATION_FULL or RALLY_DURATION_PARTIAL)
+
+        if (isCrit) then
+            radius = radius * 2
+        end
+
+        -- no line of sight test on purpose: someone through a wall can still hear you shouting
+        local candidates = {}
+        local origin = client:GetPos()
+
+        for _, ply in ipairs(player.GetAll()) do
+            if (ply != client and IsValid(ply) and ply:Alive() and ply:GetCharacter()) then
+                local distance = origin:Distance(ply:GetPos())
+
+                if (distance <= radius) then
+                    candidates[#candidates + 1] = {ply = ply, distance = distance}
+                end
+            end
+        end
+
+        -- a middling roll only carries to the nearest couple of people, so sort before trimming
+        table.sort(candidates, function(a, b)
+            return a.distance < b.distance
+        end)
+
+        local limit = isStrong and #candidates or math.min(RALLY_PARTIAL_TARGETS, #candidates)
+        local reached = 0
+
+        for i = 1, limit do
+            local targetCharacter = candidates[i].ply:GetCharacter()
+
+            if (targetCharacter) then
+                ApplyCharacterCondition(targetCharacter, "rallied", duration / 3600, nil, nil, {
+                    advantageSkills = {skillData.id}
+                })
+
+                candidates[i].ply:Notify(string.format(
+                    "%s rallies you - advantage on %s for the next %d minute(s).",
+                    client:Name(), skillData.name, math.ceil(duration / 60)
+                ))
+
+                reached = reached + 1
+            end
+        end
+
+        character:SetData("rallyCooldownUntil", now + RALLY_COOLDOWN)
+
+        if (reached == 0) then
+            client:Notify("You call out, but there's nobody in earshot to hear it.")
+        else
+            client:Notify(string.format(
+                "You rally %d %s - advantage on %s for the next %d minute(s).",
+                reached, reached == 1 and "person" or "people", skillData.name, math.ceil(duration / 60)
+            ))
+        end
     end
 })
 
@@ -1920,9 +2064,12 @@ local function SendCharacterSheet(client, target)
                 -- the instance wins over the template: /athletics writes its rolled percentage onto
                 -- the instance, while everything else just carries whatever the template declared
                 effectText = cond.effectText or (conditionDef and conditionDef.effectText),
-                -- disadvantageSkills lives on the template, not the stored instance, since it never
-                -- varies per-instance the way modifiers can (e.g. /pray's per-use skill target)
-                disadvantageSkills = conditionDef and conditionDef.disadvantageSkills
+                -- disadvantageSkills only ever comes from the template - nothing grants it per-use.
+                -- advantageSkills can come from either, since /rally decides its skill when called;
+                -- FormatTraitModifiers reads this field directly, so the card renders "advantage on
+                -- Athletics" with no extra work
+                disadvantageSkills = conditionDef and conditionDef.disadvantageSkills,
+                advantageSkills = cond.advantageSkills or (conditionDef and conditionDef.advantageSkills)
             }
         end
     end

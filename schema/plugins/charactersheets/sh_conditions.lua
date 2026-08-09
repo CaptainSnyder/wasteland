@@ -301,6 +301,18 @@ PLUGIN.conditions = {
         hideFromList = true
     },
     {
+        id = "rallied",
+        name = "Rallied",
+        description = "Someone got through to you. Whatever they said, it's working.",
+        durationHours = 3 / 60,
+        category = "other",
+        regionScope = "general",
+        modifiers = {},
+        -- the skill it grants advantage on is chosen by the leader at the moment /rally is called and
+        -- stored on the instance, so there's nothing fixed to list here
+        hideFromList = true
+    },
+    {
         id = "pulledmuscle",
         name = "Pulled a Muscle",
         description = "Something in your leg gave out mid-stride. Every step is a reminder of it.",
