@@ -1493,23 +1493,68 @@ if (SERVER) then
         return false
     end
 
-    local function SetSneakVisible(client, visible)
-        if (client.ixSneakVisible == visible) then
-            return
-        end
+    -- never fully invisible: this leaves roughly 5% opacity, enough that someone actively scanning can
+    -- pick out a shimmer, and little enough that a passing glance won't
+    local SNEAK_HIDDEN_ALPHA = 13
+    local SNEAK_VISIBLE_ALPHA = 255
+    -- how long a full fade in either direction takes, and how often the fade timer steps toward it.
+    -- kept separate from the spot check, which is far more expensive and doesn't need to run at 20Hz
+    local SNEAK_FADE_TIME = 1.2
+    local SNEAK_FADE_INTERVAL = 0.05
+    local SNEAK_FADE_STEP = (SNEAK_VISIBLE_ALPHA - SNEAK_HIDDEN_ALPHA) / (SNEAK_FADE_TIME / SNEAK_FADE_INTERVAL)
 
-        client.ixSneakVisible = visible
+    local function ApplySneakAlpha(client, alpha)
+        client.ixSneakAlpha = alpha
 
-        if (visible) then
+        if (alpha >= SNEAK_VISIBLE_ALPHA) then
             client:SetRenderMode(RENDERMODE_NORMAL)
             client:SetColor(color_white)
             client:DrawShadow(true)
         else
             client:SetRenderMode(RENDERMODE_TRANSALPHA)
-            client:SetColor(ColorAlpha(color_white, 0))
+            client:SetColor(ColorAlpha(color_white, math.Round(alpha)))
+            -- dropped the moment any fading starts: a full-strength shadow under a half-faded player
+            -- gives the whole thing away
             client:DrawShadow(false)
         end
     end
+
+    -- sets where the fade is heading. the fade timer walks them there over SNEAK_FADE_TIME rather
+    -- than snapping, so stepping in and out of someone's range reads as blending rather than blinking
+    local function SetSneakSpotted(client, spotted)
+        client.ixSneakTargetAlpha = spotted and SNEAK_VISIBLE_ALPHA or SNEAK_HIDDEN_ALPHA
+    end
+
+    -- breaking cover is immediate in both directions - you don't get to fade back in gently after
+    -- being shot at, and standing up should look like standing up
+    local function ClearSneakAlpha(client)
+        client.ixSneakTargetAlpha = nil
+        client.ixSneakAlpha = nil
+
+        client:SetRenderMode(RENDERMODE_NORMAL)
+        client:SetColor(color_white)
+        client:DrawShadow(true)
+    end
+
+    timer.Create("ixSneakyShitFadeTick", SNEAK_FADE_INTERVAL, 0, function()
+        for _, client in ipairs(player.GetAll()) do
+            local target = IsValid(client) and client.ixSneakTargetAlpha
+
+            if (target) then
+                local current = client.ixSneakAlpha or SNEAK_VISIBLE_ALPHA
+
+                if (current != target) then
+                    if (current < target) then
+                        current = math.min(target, current + SNEAK_FADE_STEP)
+                    else
+                        current = math.max(target, current - SNEAK_FADE_STEP)
+                    end
+
+                    ApplySneakAlpha(client, current)
+                end
+            end
+        end
+    end)
 
     -- assigns to the local forward declared above ResetMovementSpeed, so /athletics can reach it
     function StopSneaking(client, message)
@@ -1522,7 +1567,7 @@ if (SERVER) then
         -- cleared before the reset, so ResetMovementSpeed restores full speed rather than the
         -- slowed baseline it would use for someone still sneaking
         client.ixSneakSpeedMultiplier = nil
-        SetSneakVisible(client, true)
+        ClearSneakAlpha(client)
         ResetMovementSpeed(client)
 
         if (message) then
@@ -1554,9 +1599,9 @@ if (SERVER) then
             client.ixSneakSpeedMultiplier = GetSneakSpeedMultiplier(level)
             ResetMovementSpeed(client)
 
-            -- checked once immediately rather than waiting for the next tick, so there's no visible
-            -- flash of normal visibility the instant the command goes off
-            SetSneakVisible(client, IsSneakSpotted(client, client.ixSneakRadius))
+            -- the target is set right away rather than waiting for the next spot check, so the fade
+            -- begins the instant the command goes off instead of a beat later
+            SetSneakSpotted(client, IsSneakSpotted(client, client.ixSneakRadius))
             client:Notify("You crouch low and go still, blending into your surroundings.")
     end
 
@@ -1565,7 +1610,7 @@ if (SERVER) then
     timer.Create("ixSneakyShitTick", SNEAK_CHECK_INTERVAL, 0, function()
         for _, client in ipairs(player.GetAll()) do
             if (IsValid(client) and client:Alive() and client:GetNWBool("ixSneaking", false) and client.ixSneakRadius) then
-                SetSneakVisible(client, IsSneakSpotted(client, client.ixSneakRadius))
+                SetSneakSpotted(client, IsSneakSpotted(client, client.ixSneakRadius))
             end
         end
     end)
