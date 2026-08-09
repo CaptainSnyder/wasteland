@@ -1022,6 +1022,107 @@ ix.command.Add("Pray", {
     end
 })
 
+-- the cap is on the patient, not the medic: one person can patch up as many others as they like, but
+-- nobody gains health this way more than once every 12 hours
+local FIRST_AID_COOLDOWN = 12 * 3600
+local FIRST_AID_HEALTH_CAP = 100
+
+ix.command.Add("FirstAid", {
+    description = "Rolls First Aid to patch up whoever you're aiming at, or yourself if you aren't. Anyone can only be healed this way once every 12 hours.",
+    OnRun = function(self, client)
+        local character = client:GetCharacter()
+
+        if (!character) then
+            return
+        end
+
+        -- both trait effects are read off declarative flags rather than hardcoded ids, so another
+        -- trait can be given either behavior later without touching this command
+        local doublesBonus = false
+
+        for _, tid in ipairs(character:GetData("traits", {})) do
+            local trait = traitsByID[tid]
+
+            if (trait) then
+                if (trait.preventsFirstAid) then
+                    client:Notify("Your hands start shaking before you've even begun. You can't do this.")
+                    return
+                end
+
+                if (trait.doublesFirstAidBonus) then
+                    doublesBonus = true
+                end
+            end
+        end
+
+        -- same 96-unit aim trace the medical items use, so "close enough" means the same thing here
+        local target = GetOtherTreatmentTarget(client) or client
+        local isSelf = target == client
+        local targetCharacter = target:GetCharacter()
+
+        if (!targetCharacter) then
+            client:Notify("They have no character loaded.")
+            return
+        end
+
+        if (target:Health() >= FIRST_AID_HEALTH_CAP) then
+            client:Notify(isSelf and "You're in perfect health already."
+                or (target:Name() .. " is in perfect health already."))
+
+            return
+        end
+
+        local now = os.time()
+        local readyAt = targetCharacter:GetData("firstAidCooldownUntil", 0)
+
+        if (now < readyAt) then
+            client:Notify(string.format("%s can't be patched up again for another %s.",
+                isSelf and "You" or target:Name(), FormatWaitTime(readyAt - now)))
+
+            return
+        end
+
+        local result, diceRoll = PerformSkillCheck(client, "firstaid")
+
+        if (!result) then
+            return
+        end
+
+        -- the flat First Aid bonus is whatever the roll added on top of the raw die face - i.e. the
+        -- same "+ N (First Aid)" figure the roll line prints, attributes and invested points included
+        local flatBonus = result - diceRoll
+
+        if (doublesBonus) then
+            flatBonus = flatBonus * 2
+        end
+
+        local healAmount = math.floor(diceRoll / 2) + flatBonus
+
+        -- a botched attempt deliberately doesn't burn the cooldown: the 12 hours is a limit on
+        -- *gaining* health, and nobody gained any here
+        if (healAmount <= 0) then
+            client:Notify(isSelf and "You make a mess of it and end up no better off."
+                or ("You make a mess of it and " .. target:Name() .. " is no better off."))
+
+            return
+        end
+
+        local before = target:Health()
+        local after = math.min(before + healAmount, FIRST_AID_HEALTH_CAP)
+        local healed = after - before
+
+        target:SetHealth(after)
+        targetCharacter:SetData("firstAidCooldownUntil", now + FIRST_AID_COOLDOWN)
+
+        if (isSelf) then
+            client:Notify(string.format("You patch yourself up, recovering %d health.", healed))
+        else
+            client:Notify(string.format("You patch up %s, recovering %d health for them.", target:Name(), healed))
+            target:Notify(string.format("%s patches you up, recovering %d health.", client:Name(), healed))
+        end
+    end
+})
+
 ix.command.Add("CharSetSkill", {
     description = "Sets a character's invested points for a skill (capped at 10).",
     privilege = "Manage Character Skills",

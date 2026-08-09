@@ -279,9 +279,12 @@ PLUGIN.traits = {
     {
         id = "fearofblood",
         name = "Fear of Blood",
-        description = "The sight of blood makes your hands shake and your stomach turn.",
+        description = "The sight of blood makes your hands shake and your stomach turn. Treating an open wound is entirely beyond you - you don't get far enough to try.",
         tier = 0,
-        disadvantageSkills = {"firstaid"}
+        disadvantageSkills = {"firstaid"},
+        effectText = "cannot use /firstaid at all",
+        -- blocks the /firstaid command outright - checked directly in that command, not a modifier
+        preventsFirstAid = true
     },
     {
         id = "smoothbrain",
@@ -909,8 +912,9 @@ PLUGIN.traits = {
         disadvantageSkills = {"explosives"}
     },
     {
-        id = "fieldmedic",
-        name = "Field Medic",
+        -- renamed off "Field Medic" when that name was given to the tier 1 healing trait below
+        id = "combatmedic",
+        name = "Combat Medic",
         description = "You've patched people together in worse light, with worse supplies, while being shot at. A quiet room with clean water feels like cheating.",
         tier = 2,
         advantageSkills = {"firstaid"}
@@ -1148,6 +1152,16 @@ PLUGIN.traits = {
         description = "You haven't slept through a night since you were twelve. It has ruined your temper and saved your life about equally often.",
         tier = 1,
         modifiers = {{type = "skill", target = "vigilance", amount = 1}}
+    },
+    {
+        id = "fieldmedic",
+        name = "Field Medic",
+        description = "Somebody actually trained you for this, and it shows in your hands rather than your luck. What you know counts for twice as much when you're working on someone.",
+        tier = 1,
+        effectText = "doubles your First Aid bonus when healing with /firstaid",
+        -- doubles the flat First Aid bonus in the /firstaid heal formula - checked directly in that
+        -- command (charactersheets/sh_plugin.lua), not a modifier
+        doublesFirstAidBonus = true
     },
     {
         id = "bedsidemanner",
