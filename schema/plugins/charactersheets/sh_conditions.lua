@@ -290,7 +290,7 @@ PLUGIN.conditions = {
     },
     {
         id = "secondwind",
-        name = "Second Wind",
+        name = "Athletics Check",
         description = "Your legs have found a rhythm and your lungs are keeping up with them, for now.",
         durationHours = 1 / 60,
         category = "other",

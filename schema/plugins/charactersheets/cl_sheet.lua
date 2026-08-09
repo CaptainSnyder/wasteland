@@ -804,6 +804,12 @@ local function FormatConditionDuration(seconds)
         return string.format("%dh %dm remaining", hours, minutes)
     end
 
+    -- short conditions like the /athletics burst live entirely inside one minute, and rounding those
+    -- down to "0m remaining" tells the player nothing
+    if (minutes < 1) then
+        return string.format("%ds remaining", math.ceil(seconds))
+    end
+
     return string.format("%dm remaining", minutes)
 end
 
