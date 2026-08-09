@@ -601,8 +601,13 @@ local function BuildTraitsPage(parent, data)
         tierLabel:SetFont("DermaDefaultBold")
         tierLabel:SetTextColor(tierInfo.color)
         tierLabel:Dock(RIGHT)
-        tierLabel:SetWide(45)
         tierLabel:SetContentAlignment(6)
+
+        -- measured rather than a fixed width: 45px fit "Tier 1" but clipped "Negative" to "Negati...",
+        -- and any future label would have had the same problem
+        surface.SetFont("DermaDefaultBold")
+        local tierLabelWidth = surface.GetTextSize(tierInfo.label)
+        tierLabel:SetWide(tierLabelWidth + 8)
 
         local fullTraitDef = traitDefsByID[trait.id]
         local effectText = fullTraitDef and FormatTraitModifiers(fullTraitDef) or ""
