@@ -637,7 +637,9 @@ PLUGIN.traits = {
         id = "onelasttarget",
         name = "One Last Target...",
         description = "Due to your complicated past, there is one last target you feel obligated to take care of. Note: Discuss this trait with a GM.",
-        tier = 1,
+        -- tier 3 alongside the Bounties: it's a story thread staff have to agree to and then run,
+        -- not something a player can simply declare about themselves
+        tier = 3,
         -- set explicitly rather than leaning on the "This is a roleplay trait!" fallback: this one is a
         -- background hook rather than pure flavor. per-trait so the genuinely cosmetic traits (Tattoo)
         -- keep the roleplay wording
