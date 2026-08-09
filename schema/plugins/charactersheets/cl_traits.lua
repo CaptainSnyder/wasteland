@@ -62,14 +62,30 @@ local function OpenTraitList()
             header.DoClick = function()
                 expanded = !expanded
 
-                -- a hidden docked panel is skipped by the layout entirely, so collapsing genuinely
-                -- reclaims the space rather than leaving a gap behind
                 for _, box in ipairs(boxes) do
                     box:SetVisible(expanded)
+
+                    -- each card sizes itself in its own PerformLayout from the wrapped description
+                    -- height, and a hidden panel never lays out - so one being re-shown needs its
+                    -- height recomputed before the canvas can measure it
+                    if (expanded) then
+                        box:InvalidateLayout(true)
+                    end
                 end
 
                 UpdateHeader()
-                scroll:InvalidateLayout()
+
+                -- the cards are parented to the scroll panel's *canvas*, not the scroll panel, and
+                -- the canvas caches its own height. invalidating only the outer panel left that
+                -- cached height untouched, which stranded the collapsed section's space and pushed
+                -- every later tier off the bottom of the list. true forces an immediate layout
+                local canvas = scroll:GetCanvas()
+
+                if (IsValid(canvas)) then
+                    canvas:InvalidateLayout(true)
+                end
+
+                scroll:InvalidateLayout(true)
             end
 
             UpdateHeader()
