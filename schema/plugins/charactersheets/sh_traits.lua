@@ -765,6 +765,348 @@ PLUGIN.traits = {
         tier = 3,
         advantageSkills = {"hardass", "leadership"},
         disadvantageSkills = {"athletics", "brawling"}
+    },
+
+    -- one advantage trait (tier 2) and one disadvantage trait (tier 1) for every skill, each doing
+    -- nothing but set the roll mode - no modifiers, no side effects. three of the pairs are already
+    -- covered above and deliberately aren't repeated here: Ghost (advantage Sneaky Shit), Paranoid
+    -- (advantage Vigilance) and Fear of Blood (disadvantage First Aid)
+
+    -- Combat
+    {
+        id = "sprayandpray",
+        name = "Spray and Pray",
+        description = "You have never once released the trigger early, on the theory that the magazine knows what it's doing. Statistically indefensible. Keeps working anyway.",
+        tier = 2,
+        advantageSkills = {"automaticweapons"}
+    },
+    {
+        id = "recoilshy",
+        name = "Recoil Shy",
+        description = "The first round goes exactly where you wanted. The remaining twenty-nine are put to a vote, and you are outnumbered.",
+        tier = 1,
+        disadvantageSkills = {"automaticweapons"}
+    },
+    {
+        id = "compensating",
+        name = "Compensating",
+        description = "Nobody has ever asked why you need the biggest gun in the room. They just watch you carry it like it weighs nothing and quietly decide not to bring it up.",
+        tier = 2,
+        advantageSkills = {"bigguns"}
+    },
+    {
+        id = "badback",
+        name = "Bad Back",
+        description = "You can lift it. You cannot aim it, hold it steady, or walk normally for the rest of the week, but you can lift it.",
+        tier = 1,
+        disadvantageSkills = {"bigguns"}
+    },
+    {
+        id = "barregular",
+        name = "Bar Regular",
+        description = "You've been thrown out of enough places to know exactly how a fight starts, which is how you keep managing to finish them first.",
+        tier = 2,
+        advantageSkills = {"brawling"}
+    },
+    {
+        id = "glassjaw",
+        name = "Glass Jaw",
+        description = "You throw a respectable punch. This remains true right up until the moment somebody throws one back at you.",
+        tier = 1,
+        disadvantageSkills = {"brawling"}
+    },
+    {
+        id = "upcloseandpersonal",
+        name = "Up Close and Personal",
+        description = "You like your problems within arm's reach. Guns always felt impersonal, and you were never any good at distance in general.",
+        tier = 2,
+        advantageSkills = {"melee"}
+    },
+    {
+        id = "loosegrip",
+        name = "Loose Grip",
+        description = "A blade is a simple tool: the pointy end goes in the other person. Yours keeps ending up on the floor between you.",
+        tier = 1,
+        disadvantageSkills = {"melee"}
+    },
+    {
+        id = "quickdraw",
+        name = "Quick Draw",
+        description = "The gun is out before you've finished deciding whether it needed to be. So far the timing has worked out more often than not.",
+        tier = 2,
+        advantageSkills = {"smallarms"}
+    },
+    {
+        id = "pointblankmiss",
+        name = "Point Blank Miss",
+        description = "You have missed at a range where missing should be physically impossible. Not once. There were witnesses both times.",
+        tier = 1,
+        disadvantageSkills = {"smallarms"}
+    },
+    {
+        id = "patientsort",
+        name = "Patient Sort",
+        description = "Nine hours face-down in the dirt for one shot. You describe this as work. Everyone who knows you describes it as a warning sign.",
+        tier = 2,
+        advantageSkills = {"snipers"}
+    },
+    {
+        id = "caffeineshakes",
+        name = "Caffeine Shakes",
+        description = "Six cups deep and the crosshair has developed a pulse of its own. You could stop drinking it. You will not.",
+        tier = 1,
+        disadvantageSkills = {"snipers"}
+    },
+    {
+        id = "wattsup",
+        name = "Watt's Up",
+        description = "The hum of a charged cell just makes sense to you in a way that people never have. You've stopped mentioning this to people.",
+        tier = 2,
+        advantageSkills = {"energyweapons"}
+    },
+    {
+        id = "shockprone",
+        name = "Shock Prone",
+        description = "Every energy weapon you pick up discovers a fresh and creative route to discharge directly into your hand. They cannot all be faulty.",
+        tier = 1,
+        disadvantageSkills = {"energyweapons"}
+    },
+    {
+        id = "goodarm",
+        name = "Good Arm",
+        description = "Whatever leaves your hand arrives where you meant it to. This has settled more arguments than it started, though it's been close.",
+        tier = 2,
+        advantageSkills = {"throwing"}
+    },
+    {
+        id = "cookedittoolong",
+        name = "Cooked It Too Long",
+        description = "You hold on to things a beat longer than anyone standing near you is comfortable with. Your friends have learned to stand further away.",
+        tier = 1,
+        disadvantageSkills = {"throwing"}
+    },
+
+    -- General
+    {
+        id = "fusewhisperer",
+        name = "Fuse Whisperer",
+        description = "You can tell how long a charge has left by the smell of it. Nobody has ever asked you to explain this, and you appreciate that.",
+        tier = 2,
+        advantageSkills = {"explosives"}
+    },
+    {
+        id = "alltenfingers",
+        name = "All Ten Fingers",
+        description = "You still have every finger you were born with, a fact you mention constantly and which everyone around you regards as temporary.",
+        tier = 1,
+        disadvantageSkills = {"explosives"}
+    },
+    {
+        id = "fieldmedic",
+        name = "Field Medic",
+        description = "You've patched people together in worse light, with worse supplies, while being shot at. A quiet room with clean water feels like cheating.",
+        tier = 2,
+        advantageSkills = {"firstaid"}
+    },
+    {
+        id = "heavyfooted",
+        name = "Heavy Footed",
+        description = "Your approach has been described, by people trying to be kind about it, as audible.",
+        tier = 1,
+        disadvantageSkills = {"sneakyshit"}
+    },
+    {
+        id = "wellactually",
+        name = "Well, Actually",
+        description = "You retain a staggering volume of information nobody requested. Roughly once a month this saves somebody's life, which you bring up constantly.",
+        tier = 2,
+        advantageSkills = {"nerdstuff"}
+    },
+    {
+        id = "allergictoreading",
+        name = "Allergic to Reading",
+        description = "Words arranged in rows make your eyes slide clean off the page. You've gotten this far on pictures and confidence.",
+        tier = 1,
+        disadvantageSkills = {"nerdstuff"}
+    },
+    {
+        id = "countscards",
+        name = "Counts Cards",
+        description = "You aren't lucky. You're doing arithmetic and letting everyone at the table assume otherwise, which is the whole trick.",
+        tier = 2,
+        advantageSkills = {"gambling"}
+    },
+    {
+        id = "dueforawin",
+        name = "Due for a Win",
+        description = "You've lost eleven hands running. By your reasoning this makes the twelfth a mathematical certainty. It does not.",
+        tier = 1,
+        disadvantageSkills = {"gambling"}
+    },
+
+    -- Exploration
+    {
+        id = "neverownedakey",
+        name = "Never Owned a Key",
+        description = "You've gotten into every building you've ever needed to and haven't carried a key since childhood. These two facts are related.",
+        tier = 2,
+        advantageSkills = {"lockpicking"}
+    },
+    {
+        id = "hamfisted",
+        name = "Ham-Fisted",
+        description = "Every lock you lay hands on becomes, through sheer force of personality, a permanently sealed door.",
+        tier = 1,
+        disadvantageSkills = {"lockpicking"}
+    },
+    {
+        id = "ateworse",
+        name = "Ate Worse",
+        description = "You have eaten things that would hospitalize a healthier person and you are, inexplicably, still standing here talking about it.",
+        tier = 2,
+        advantageSkills = {"survival"}
+    },
+    {
+        id = "indoorkid",
+        name = "Indoor Kid",
+        description = "The wasteland is out there. You are aware of this. You would like it to remain out there, and you resent every minute spent in it.",
+        tier = 1,
+        disadvantageSkills = {"survival"}
+    },
+    {
+        id = "percussivemaintenance",
+        name = "Percussive Maintenance",
+        description = "Your entire methodology is hitting it until it works. The infuriating part, to everyone watching, is that it works.",
+        tier = 2,
+        advantageSkills = {"repair"}
+    },
+    {
+        id = "warrantyvoid",
+        name = "Warranty Void",
+        description = "Everything you repair comes back working, plus one exciting new problem that wasn't there before and that nobody can trace.",
+        tier = 1,
+        disadvantageSkills = {"repair"}
+    },
+    {
+        id = "onemanstrash",
+        name = "One Man's Trash",
+        description = "You see value in piles other people walk straight past. Your living space reflects this and your friends have stopped commenting on it.",
+        tier = 2,
+        advantageSkills = {"scavenging"}
+    },
+    {
+        id = "leftitbehind",
+        name = "Left It Behind",
+        description = "The good stuff was right there. You looked directly at it. You picked up the other thing and left feeling pleased with yourself.",
+        tier = 1,
+        disadvantageSkills = {"scavenging"}
+    },
+    {
+        id = "daydreamer",
+        name = "Daydreamer",
+        description = "You are somewhere else most of the time, and by every account it's a considerably nicer place than this one.",
+        tier = 1,
+        disadvantageSkills = {"vigilance"}
+    },
+    {
+        id = "cardio",
+        name = "Cardio",
+        description = "You run every morning, which everyone found ridiculous right up until the day it was the only reason any of you got out.",
+        tier = 2,
+        advantageSkills = {"athletics"}
+    },
+    {
+        id = "twopacksaday",
+        name = "Two Packs a Day",
+        description = "Your lungs made their position clear years ago. You've chosen to respect their decision rather than fight it.",
+        tier = 1,
+        disadvantageSkills = {"athletics"}
+    },
+    {
+        id = "stolencars",
+        name = "Learned on Stolen Cars",
+        description = "Nobody taught you properly, which is exactly why you're better at it than the people who were taught properly.",
+        tier = 2,
+        advantageSkills = {"piloting"}
+    },
+    {
+        id = "nolicense",
+        name = "No License",
+        description = "Nobody ever taught you and you never saw the need to find out. This becomes apparent to your passengers within about four seconds.",
+        tier = 1,
+        disadvantageSkills = {"piloting"}
+    },
+
+    -- Social
+    {
+        id = "haggler",
+        name = "Haggler",
+        description = "You have never paid a listed price in your life and you will die on this hill, ideally after talking someone down on the cost of the hill.",
+        tier = 2,
+        advantageSkills = {"barter"}
+    },
+    {
+        id = "paysaskingprice",
+        name = "Pays Asking Price",
+        description = "You have never once questioned a number said to you with enough confidence. Merchants have a particular look they get when you walk in.",
+        tier = 1,
+        disadvantageSkills = {"barter"}
+    },
+    {
+        id = "restingthreatface",
+        name = "Resting Threat Face",
+        description = "You aren't angry. This is simply your face. People hand things over anyway and you've long since stopped correcting them.",
+        tier = 2,
+        advantageSkills = {"hardass"}
+    },
+    {
+        id = "pleaseandthankyou",
+        name = "Please and Thank You",
+        description = "Somebody raised you far too well. You cannot issue a threat without softening it into a request, and it shows.",
+        tier = 1,
+        disadvantageSkills = {"hardass"}
+    },
+    {
+        id = "shameless",
+        name = "Shameless",
+        description = "There is no compliment too transparent and no ass too large for you to kiss. You gave up your dignity years ago and have never once missed it.",
+        tier = 2,
+        advantageSkills = {"kissass"}
+    },
+    {
+        id = "allergictoflattery",
+        name = "Allergic to Flattery",
+        description = "You are physically incapable of saying something nice that you don't mean, which has cost you more than you'll ever admit.",
+        tier = 1,
+        disadvantageSkills = {"kissass"}
+    },
+    {
+        id = "loudestintheroom",
+        name = "Loudest in the Room",
+        description = "It wasn't the best plan available. You just said it first and with total conviction, and it turns out that's most of leadership.",
+        tier = 2,
+        advantageSkills = {"leadership"}
+    },
+    {
+        id = "committeeofone",
+        name = "Committee of One",
+        description = "You struggle to get yourself to agree on a plan. Convincing several other armed people to follow it is well beyond you.",
+        tier = 1,
+        disadvantageSkills = {"leadership"}
+    },
+    {
+        id = "greatliar",
+        name = "Terrible Person, Great Liar",
+        description = "Everyone who has known you longer than a month agrees on both halves of this. You've made peace with the arrangement.",
+        tier = 2,
+        advantageSkills = {"deception"}
+    },
+    {
+        id = "awfulpokerface",
+        name = "Awful Poker Face",
+        description = "Every thought you have arrives on your face a full three seconds before it reaches your mouth, and it always gets there first.",
+        tier = 1,
+        disadvantageSkills = {"deception"}
     }
 }
 
