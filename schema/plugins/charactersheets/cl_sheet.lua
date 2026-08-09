@@ -648,26 +648,46 @@ local function BuildTraitsPage(parent, data)
     -- created before the scroll panel: sibling docked panels stack in creation order, and a FILL
     -- child claims everything left over, so anything docked TOP has to come first
     if (data.isOwner) then
-        local pointsLabel = parent:Add("DLabel")
-        pointsLabel:SetFont("DermaDefaultBold")
-        pointsLabel:SetTextColor(Color(217, 179, 92))
-        pointsLabel:Dock(TOP)
-        pointsLabel:SetTall(22)
-        pointsLabel:DockMargin(10, 10, 10, 0)
+        local pointsButton = parent:Add("DButton")
+        pointsButton:SetFont("DermaDefaultBold")
+        pointsButton:SetTextColor(Color(217, 179, 92))
+        pointsButton:SetContentAlignment(4)
+        pointsButton:SetTextInset(4, 0)
+        pointsButton:Dock(TOP)
+        pointsButton:SetTall(22)
+        -- 6 on the left rather than 10, so the 4px text inset lands the text where the plain label
+        -- used to sit and nothing shifts
+        pointsButton:DockMargin(6, 10, 10, 0)
+        pointsButton:SetTooltip("Open the trait shop.")
+
+        -- flat like the label it replaced, with a faint highlight on hover so it reads as clickable
+        pointsButton.Paint = function(self, w, h)
+            if (self:IsHovered()) then
+                draw.RoundedBox(4, 0, 0, w, h, Color(255, 255, 255, 14))
+            end
+        end
 
         local pointsText = "Trait Points: " .. (data.traitPoints or 0)
 
         if (data.nextTraitCost) then
-            pointsText = pointsText .. string.format(
-                "   (next trait costs %d - /buytraits)", data.nextTraitCost
-            )
+            pointsText = pointsText .. string.format("   (next trait costs %d)", data.nextTraitCost)
         else
             pointsText = pointsText .. string.format(
                 "   (all %d purchasable traits bought)", data.maxPurchasedTraits or 10
             )
         end
 
-        pointsLabel:SetText(pointsText)
+        pointsButton:SetText(pointsText)
+
+        pointsButton.DoClick = function()
+            -- the sheet is a modal popup, so it has to go before the shop opens - two stacked popups
+            -- would leave the shop fighting the sheet for mouse input
+            if (IsValid(ix.gui.characterSheet)) then
+                ix.gui.characterSheet:Remove()
+            end
+
+            ix.command.Send("BuyTraits")
+        end
     end
 
     local scroll = vgui.Create("DScrollPanel", parent)
