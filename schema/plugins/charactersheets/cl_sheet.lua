@@ -147,6 +147,47 @@ local function WrapTooltipText(text, maxChars)
     return table.concat(lines, "\n")
 end
 
+-- GMod's built-in tooltip is a fixed yellow DTooltip with no styling hooks, so the only way to change
+-- its look is to hand the panel a replacement of our own via SetTooltipPanel. text is drawn directly
+-- in Paint rather than through a DLabel: DLabel's SizeToContents is unreliable with embedded newlines,
+-- and measuring each line ourselves means the box is always exactly the right size
+local function BuildThoughtsTooltip(text)
+    local lines = {}
+
+    for line in string.gmatch(text, "[^\n]+") do
+        lines[#lines + 1] = line
+    end
+
+    surface.SetFont("ixCharQuoteFont")
+
+    local widest = 0
+    local _, lineHeight = surface.GetTextSize("Ag")
+
+    for _, line in ipairs(lines) do
+        widest = math.max(widest, (surface.GetTextSize(line)))
+    end
+
+    local panel = vgui.Create("DPanel")
+    panel:SetSize(widest + 20, (lineHeight * #lines) + 16)
+    panel:SetDrawOnTop(true)
+
+    panel.Paint = function(self, w, h)
+        draw.RoundedBox(4, 0, 0, w, h, Color(18, 18, 18, 245))
+
+        surface.SetDrawColor(217, 179, 92, 70)
+        surface.DrawOutlinedRect(0, 0, w, h)
+
+        local y = 8
+
+        for _, line in ipairs(lines) do
+            draw.SimpleText(line, "ixCharQuoteFont", 10, y, Color(222, 212, 190), TEXT_ALIGN_LEFT, TEXT_ALIGN_TOP)
+            y = y + lineHeight
+        end
+    end
+
+    return panel
+end
+
 local function BuildRelationshipsPage(parent, data)
     if (data.isOwner) then
         local addButton = parent:Add("DButton")
@@ -194,10 +235,12 @@ local function BuildRelationshipsPage(parent, data)
 
         local thoughts = string.Trim(entry.thoughts or "")
 
+        -- quotes go on before wrapping so they're measured as part of the text and the closing one
+        -- lands naturally at the end of the last line
         if (thoughts != "") then
-            nameButton:SetTooltip(WrapTooltipText(thoughts))
+            nameButton:SetTooltipPanel(BuildThoughtsTooltip(WrapTooltipText('"' .. thoughts .. '"')))
         else
-            nameButton:SetTooltip("Nothing written down about them yet.")
+            nameButton:SetTooltipPanel(BuildThoughtsTooltip("Nothing written down about them yet."))
         end
 
         if (data.isOwner) then
