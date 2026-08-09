@@ -340,6 +340,9 @@ PLUGIN.charSetupStages = {
                 description = "You've spent your recent years patching up whoever needed it - caravan guards, settlers, the occasional wounded raider too far gone to be a threat - because someone had to, and you turned out to be good at it. There's never enough supplies and never enough time, so you learned to work fast and calm under pressure most people can't stomach. It's thankless, exhausting work, but it's earned you a reputation as someone worth having around when things go wrong, which out here is worth more than caps.",
                 attributes = {{target = "intelligence", amount = 1}, {target = "charisma", amount = 1}},
                 skills = {{target = "firstaid", amount = 3}},
+                -- shares its name with the trait for a reason: this background is the trained medic,
+                -- so it hands over the healing bonus that goes with it
+                traitID = "fieldmedic",
                 items = {} -- TODO: starting item(s) for this option
             },
             {

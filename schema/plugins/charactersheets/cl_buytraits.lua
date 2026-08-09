@@ -68,7 +68,8 @@ local function BuildPurchaseWindow(data)
                 name = def.name,
                 description = def.description,
                 effect = FormatTraitModifiers(def),
-                owned = sent.owned
+                owned = sent.owned,
+                blockedBy = sent.blockedBy
             }
         end
     end
@@ -104,6 +105,10 @@ local function BuildPurchaseWindow(data)
         if (trait.owned) then
             buyButton:SetText("Owned")
             buyButton:SetEnabled(false)
+        elseif (trait.blockedBy) then
+            buyButton:SetText("Blocked")
+            buyButton:SetEnabled(false)
+            buyButton:SetTooltip("You can't take this while you have '" .. trait.blockedBy .. "'.")
         elseif (!data.nextCost) then
             buyButton:SetText("Max")
             buyButton:SetEnabled(false)

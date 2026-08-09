@@ -1164,6 +1164,19 @@ PLUGIN.traits = {
         doublesFirstAidBonus = true
     },
     {
+        id = "holyhealer",
+        name = "Holy Healer",
+        description = "You pray over the wounded before you ever lay a hand on them, and you're quietly certain that's the half doing the real work. Cannot be taken alongside Atheist.",
+        tier = 1,
+        effectText = "praying for guidance in First Aid grants 1 extra point",
+        -- conflicts are checked in both directions by GetConflictingTrait (charactersheets/
+        -- sh_plugin.lua), so Atheist doesn't need a matching entry pointing back at this
+        conflictsWith = {"atheist"},
+        -- adds 1 to the /pray bonus, but only when praying for First Aid - applied directly in the
+        -- Pray command, not a modifier
+        boostsPrayerFirstAid = true
+    },
+    {
         id = "bedsidemanner",
         name = "Bedside Manner",
         description = "You talk people through it while you work. Half of them come away swearing that was the part that actually helped.",

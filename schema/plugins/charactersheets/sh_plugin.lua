@@ -87,6 +87,27 @@ for _, trait in ipairs(traitList) do
     traitsByID[trait.id] = trait
 end
 
+-- returns the trait a character already has that clashes with one they're trying to take, or nil.
+-- checked in both directions, so only one side of a conflicting pair has to declare it - Holy Healer
+-- lists Atheist, and Atheist doesn't need to know Holy Healer exists
+local function GetConflictingTrait(character, trait)
+    for _, tid in ipairs(character:GetData("traits", {})) do
+        if (tid != trait.id) then
+            if (trait.conflictsWith and table.HasValue(trait.conflictsWith, tid)) then
+                return traitsByID[tid]
+            end
+
+            local ownedTrait = traitsByID[tid]
+
+            if (ownedTrait and ownedTrait.conflictsWith and table.HasValue(ownedTrait.conflictsWith, trait.id)) then
+                return ownedTrait
+            end
+        end
+    end
+
+    return nil
+end
+
 local conditionsByID = {}
 
 for _, condition in ipairs(conditionList) do
@@ -1010,7 +1031,20 @@ ix.command.Add("Pray", {
             return
         end
 
+        -- Religious doubles the base, then Holy Healer adds its point on top, so the two stack:
+        -- 1 normally, 2 with either, 3 with both when the prayer is for First Aid
         local amount = table.HasValue(traitIDs, "religious") and 2 or 1
+
+        if (skillData.id == "firstaid") then
+            for _, tid in ipairs(traitIDs) do
+                local trait = traitsByID[tid]
+
+                if (trait and trait.boostsPrayerFirstAid) then
+                    amount = amount + 1
+                    break
+                end
+            end
+        end
 
         ApplyCharacterCondition(character, "prayer", 12, nil, {
             {type = "skill", target = skillData.id, amount = amount}
@@ -1423,6 +1457,12 @@ ix.command.Add("CharGiveTraits", {
             return string.format("%s already has the '%s' trait.", target:GetName(), trait.name)
         end
 
+        local conflict = GetConflictingTrait(target, trait)
+
+        if (conflict) then
+            return string.format("The character has a conflicting trait! ('%s')", conflict.name)
+        end
+
         table.insert(traits, trait.id)
         target:SetData("traits", traits)
 
@@ -1450,9 +1490,13 @@ if (SERVER) then
 
         for _, trait in ipairs(traitList) do
             if ((trait.tier or 1) == 1) then
+                local conflict = !owned[trait.id] and GetConflictingTrait(character, trait) or nil
+
                 available[#available + 1] = {
                     id = trait.id,
-                    owned = owned[trait.id] == true
+                    owned = owned[trait.id] == true,
+                    -- name only, so the shop can say what's in the way without resolving it itself
+                    blockedBy = conflict and conflict.name or nil
                 }
             end
         end
@@ -1922,6 +1966,16 @@ if (SERVER) then
 
         if (table.HasValue(traits, traitID)) then
             client:Notify("You already have that trait.")
+            return
+        end
+
+        local conflict = GetConflictingTrait(character, trait)
+
+        if (conflict) then
+            client:Notify(string.format(
+                "You can't take '%s' while you have '%s'.", trait.name, conflict.name
+            ))
+
             return
         end
 
