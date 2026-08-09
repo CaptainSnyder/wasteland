@@ -632,8 +632,12 @@ PLUGIN.traits = {
         id = "onelasttarget",
         name = "One Last Target...",
         description = "Due to your complicated past, there is one last target you feel obligated to take care of. Note: Discuss this trait with a GM.",
-        tier = 1
-        -- purely a roleplay hook trait, no modifiers - the actual story beat is meant to be worked out with staff
+        tier = 1,
+        -- set explicitly rather than leaning on the "This is a roleplay trait!" fallback: this one is a
+        -- background hook rather than pure flavor. per-trait so the genuinely cosmetic traits (Tattoo)
+        -- keep the roleplay wording
+        effectText = "This is a background trait"
+        -- no modifiers - the actual story beat is meant to be worked out with staff
     },
     {
         id = "rangertraining",
