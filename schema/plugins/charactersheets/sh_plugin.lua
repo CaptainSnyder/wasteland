@@ -1381,17 +1381,14 @@ local RALLY_RADIUS_AT_LEVEL_FIVE = 512
 -- an untrained leader can still reach whoever is stood right next to them, rather than the command
 -- succeeding and silently affecting nobody
 local RALLY_MIN_RADIUS = 128
-local RALLY_COOLDOWN = 15 * 60
+local RALLY_COOLDOWN = 60 * 60
+-- failing doesn't cost the hour, only long enough to stop it being mashed
 local RALLY_FAIL_COOLDOWN = 30
 local RALLY_SUCCESS_THRESHOLD = 10
-local RALLY_STRONG_THRESHOLD = 18
-local RALLY_PARTIAL_TARGETS = 2
-local RALLY_DURATION_PARTIAL = 2 * 60
-local RALLY_DURATION_FULL = 3 * 60
-local RALLY_DURATION_CRIT = 5 * 60
+local RALLY_DURATION = 5 * 60
 
 ix.command.Add("Rally", {
-    description = "Rallies nearby allies, granting them advantage on a skill. Never affects you, and reaches further the more Leadership you've invested.",
+    description = "Rallies nearby allies for 5 minutes, granting advantage on a skill. Never affects you, reaches further the more Leadership you have invested, and can only be used once an hour.",
     arguments = {
         ix.type.string
     },
@@ -1446,48 +1443,71 @@ ix.command.Add("Rally", {
         local level = character:GetData("skills", {})["leadership"] or 0
         local radius = math.max(RALLY_MIN_RADIUS, (level / 5) * RALLY_RADIUS_AT_LEVEL_FIVE)
 
-        local isCrit = diceRoll == 20
-        local isStrong = isCrit or result >= RALLY_STRONG_THRESHOLD
-        local duration = isCrit and RALLY_DURATION_CRIT
-            or (isStrong and RALLY_DURATION_FULL or RALLY_DURATION_PARTIAL)
-
-        if (isCrit) then
+        if (diceRoll == 20) then
             radius = radius * 2
         end
 
-        -- no line of sight test on purpose: someone through a wall can still hear you shouting
+        -- the skills everyone in earshot ends up with advantage on. Inspirational Leader adds a second
+        -- one drawn at random from the same category - rolled once here rather than per person, so the
+        -- whole group is rallied around the same pair rather than each getting something different
+        local grantedSkills = {skillData.id}
+        local bonusSkill
+
+        for _, tid in ipairs(character:GetData("traits", {})) do
+            local trait = traitsByID[tid]
+
+            if (trait and trait.rallyBonusSkillInCategory) then
+                local pool = {}
+
+                for _, candidate in ipairs(GetSkillsInCategory(skillData.category)) do
+                    if (candidate.id != skillData.id) then
+                        pool[#pool + 1] = candidate
+                    end
+                end
+
+                if (#pool > 0) then
+                    bonusSkill = pool[math.random(#pool)]
+                    grantedSkills[#grantedSkills + 1] = bonusSkill.id
+                end
+
+                break
+            end
+        end
+
+        local skillSummary = skillData.name
+
+        if (bonusSkill) then
+            skillSummary = skillSummary .. " and " .. bonusSkill.name
+        end
+
+        -- no line of sight test on purpose: someone through a wall can still hear you shouting.
+        -- everyone inside the radius is reached, so there's no need to rank them by distance
         local candidates = {}
         local origin = client:GetPos()
 
         for _, ply in ipairs(player.GetAll()) do
             if (ply != client and IsValid(ply) and ply:Alive() and ply:GetCharacter()) then
-                local distance = origin:Distance(ply:GetPos())
-
-                if (distance <= radius) then
-                    candidates[#candidates + 1] = {ply = ply, distance = distance}
+                if (origin:Distance(ply:GetPos()) <= radius) then
+                    candidates[#candidates + 1] = ply
                 end
             end
         end
 
-        -- a middling roll only carries to the nearest couple of people, so sort before trimming
-        table.sort(candidates, function(a, b)
-            return a.distance < b.distance
-        end)
-
-        local limit = isStrong and #candidates or math.min(RALLY_PARTIAL_TARGETS, #candidates)
         local reached = 0
 
-        for i = 1, limit do
-            local targetCharacter = candidates[i].ply:GetCharacter()
+        for _, ply in ipairs(candidates) do
+            local targetCharacter = ply:GetCharacter()
 
             if (targetCharacter) then
-                ApplyCharacterCondition(targetCharacter, "rallied", duration / 3600, nil, nil, {
-                    advantageSkills = {skillData.id}
+                -- one Rallied condition per person, matched on sourceId, so a fresh rally replaces
+                -- whatever the last one granted rather than stacking alongside it
+                ApplyCharacterCondition(targetCharacter, "rallied", RALLY_DURATION / 3600, nil, nil, {
+                    advantageSkills = grantedSkills
                 })
 
-                candidates[i].ply:Notify(string.format(
-                    "%s rallies you - advantage on %s for the next %d minute(s).",
-                    client:Name(), skillData.name, math.ceil(duration / 60)
+                ply:Notify(string.format(
+                    "%s rallies you - advantage on %s for the next 5 minutes.",
+                    client:Name(), skillSummary
                 ))
 
                 reached = reached + 1
@@ -1500,8 +1520,8 @@ ix.command.Add("Rally", {
             client:Notify("You call out, but there's nobody in earshot to hear it.")
         else
             client:Notify(string.format(
-                "You rally %d %s - advantage on %s for the next %d minute(s).",
-                reached, reached == 1 and "person" or "people", skillData.name, math.ceil(duration / 60)
+                "You rally %d %s - advantage on %s for the next 5 minutes.",
+                reached, reached == 1 and "person" or "people", skillSummary
             ))
         end
     end

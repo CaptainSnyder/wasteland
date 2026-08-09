@@ -1092,6 +1092,15 @@ PLUGIN.traits = {
         disadvantageSkills = {"kissass"}
     },
     {
+        id = "inspirationalleader",
+        name = "Inspirational Leader",
+        description = "You don't just tell people what to do, you make them believe it's worth doing. Whatever you call for, something else in them sharpens up alongside it.",
+        tier = 2,
+        effectText = "/rally also grants advantage on one random other skill from the same category",
+        -- read directly by the Rally command (charactersheets/sh_plugin.lua), not a modifier
+        rallyBonusSkillInCategory = true
+    },
+    {
         id = "loudestintheroom",
         name = "Loudest in the Room",
         description = "It wasn't the best plan available. You just said it first and with total conviction, and it turns out that's most of leadership.",
