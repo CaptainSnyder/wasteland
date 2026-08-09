@@ -1176,6 +1176,77 @@ ix.command.Add("FirstAid", {
     end
 })
 
+-- a short burst of movement speed. the percentage is half the roll total, so a middling roll is worth
+-- a few percent and only a 50+ total reaches the cap
+local ATHLETICS_DURATION = 60
+local ATHLETICS_COOLDOWN = 10 * 60
+-- a wasted attempt only costs a minute, the same way /firstaid handles a failed roll
+local ATHLETICS_FAIL_COOLDOWN = 60
+local ATHLETICS_SUCCESS_THRESHOLD = 10
+local ATHLETICS_MAX_PERCENT = 25
+
+-- back to the configured defaults rather than to whatever they were before the boost: those are the
+-- same values PostPlayerLoadout uses, so this can't strand anyone at a modified speed
+local function ResetMovementSpeed(client)
+    if (!IsValid(client)) then
+        return
+    end
+
+    client:SetWalkSpeed(ix.config.Get("walkSpeed"))
+    client:SetRunSpeed(ix.config.Get("runSpeed"))
+end
+
+ix.command.Add("Athletics", {
+    description = "Rolls Athletics for a burst of speed lasting 1 minute. Needs a 10 or better, and can be attempted every 10 minutes.",
+    OnRun = function(self, client)
+        local character = client:GetCharacter()
+
+        if (!character) then
+            return
+        end
+
+        local now = os.time()
+        local readyAt = character:GetData("athleticsCooldownUntil", 0)
+
+        if (now < readyAt) then
+            client:Notify(string.format(
+                "You need to catch your breath for another %s.", FormatWaitTime(readyAt - now)
+            ))
+
+            return
+        end
+
+        local result = PerformSkillCheck(client, "athletics")
+
+        if (!result) then
+            return
+        end
+
+        if (result < ATHLETICS_SUCCESS_THRESHOLD) then
+            character:SetData("athleticsCooldownUntil", now + ATHLETICS_FAIL_COOLDOWN)
+            client:Notify("You push yourself and get nowhere.")
+
+            return
+        end
+
+        local percent = math.min(result / 2, ATHLETICS_MAX_PERCENT)
+        local multiplier = 1 + (percent / 100)
+
+        client:SetWalkSpeed(ix.config.Get("walkSpeed") * multiplier)
+        client:SetRunSpeed(ix.config.Get("runSpeed") * multiplier)
+        character:SetData("athleticsCooldownUntil", now + ATHLETICS_COOLDOWN)
+
+        client:Notify(string.format(
+            "You hit your stride - %s%% faster for the next minute.", math.Round(percent, 1)
+        ))
+
+        -- the cooldown is ten times the duration, so a second boost can never overlap this timer
+        timer.Simple(ATHLETICS_DURATION, function()
+            ResetMovementSpeed(client)
+        end)
+    end
+})
+
 ix.command.Add("CharSetSkill", {
     description = "Sets a character's invested points for a skill (capped at 10).",
     privilege = "Manage Character Skills",
