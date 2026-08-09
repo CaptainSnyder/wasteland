@@ -314,6 +314,32 @@ PLUGIN.conditions = {
         -- modifier, since modifiers only reach attributes and skills, not movement speed
         hideFromList = true
     },
+    -- these two are purely a readout of an active cooldown. they enforce nothing themselves - the
+    -- commands still check their own stored timestamps - but they give the player somewhere to look
+    -- instead of having to run the command to find out whether it's ready. duration is set per-use to
+    -- match whatever cooldown was actually applied, since those vary by outcome
+    {
+        id = "recentlytreated",
+        name = "Recently Treated",
+        description = "Someone has ran /firstaid on you lately.",
+        durationHours = 12,
+        category = "health",
+        regionScope = "general",
+        modifiers = {},
+        effectText = "cannot be healed by /firstaid again yet",
+        hideFromList = true
+    },
+    {
+        id = "recentlysprint",
+        name = "Recently Sprint",
+        description = "You have recently used /athletics",
+        durationHours = 5 / 60,
+        category = "health",
+        regionScope = "general",
+        modifiers = {},
+        effectText = "cannot use /athletics again yet",
+        hideFromList = true
+    },
     {
         id = "cigarette",
         name = "Nicotine Buzz",

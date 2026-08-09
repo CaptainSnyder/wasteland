@@ -1135,10 +1135,17 @@ ix.command.Add("FirstAid", {
             return
         end
 
-        -- shared by both ways an attempt can come to nothing, so a wasted try never costs the full
-        -- 12 hours - that's reserved for actually having been healed
+        -- the stored timestamp is what actually gates the command; the condition alongside it is so
+        -- the patient can see the lockout on their Health tab. both get the same duration
+        local function SetTreatedCooldown(seconds)
+            targetCharacter:SetData("firstAidCooldownUntil", now + seconds)
+            ApplyCharacterCondition(targetCharacter, "recentlytreated", seconds / 3600)
+        end
+
+        -- shared by both ways an attempt can come to nothing without doing harm, so an ordinary
+        -- wasted try never costs the full 12 hours
         local function FailAttempt(reason)
-            targetCharacter:SetData("firstAidCooldownUntil", now + FIRST_AID_FAIL_COOLDOWN)
+            SetTreatedCooldown(FIRST_AID_FAIL_COOLDOWN)
             client:Notify(reason)
         end
 
@@ -1151,7 +1158,11 @@ ix.command.Add("FirstAid", {
                 target:SetHealth(target:Health() - hurt)
             end
 
-            FailAttempt(isSelf and "You make it worse. That's going to bruise."
+            -- the full cooldown, not the short retry one: the wound has been meddled with badly
+            -- enough that it needs leaving alone, which is a harsher outcome than simply failing
+            SetTreatedCooldown(FIRST_AID_COOLDOWN)
+
+            client:Notify(isSelf and "You make it worse. That's going to bruise."
                 or ("You make it worse - " .. target:Name() .. " is hurt by the attempt."))
 
             if (!isSelf) then
@@ -1196,7 +1207,7 @@ ix.command.Add("FirstAid", {
         local healed = after - before
 
         target:SetHealth(after)
-        targetCharacter:SetData("firstAidCooldownUntil", now + FIRST_AID_COOLDOWN)
+        SetTreatedCooldown(FIRST_AID_COOLDOWN)
 
         if (isSelf) then
             client:Notify(string.format("You patch yourself up, recovering %d health.", healed))
@@ -1260,6 +1271,12 @@ ix.command.Add("Athletics", {
             return
         end
 
+        -- as with /firstaid, the timestamp is the real gate and the condition is the readout
+        local function SetSprintCooldown(seconds)
+            character:SetData("athleticsCooldownUntil", now + seconds)
+            ApplyCharacterCondition(character, "recentlysprint", seconds / 3600)
+        end
+
         -- checked before the threshold, since a natural 1 almost always lands under it anyway and
         -- the injury has to take precedence over the ordinary failure
         if (diceRoll == 1) then
@@ -1269,7 +1286,7 @@ ix.command.Add("Athletics", {
             client:SetRunSpeed(ix.config.Get("runSpeed") * penaltyMultiplier)
 
             ApplyCharacterCondition(character, "pulledmuscle", ATHLETICS_INJURY_DURATION / 3600)
-            character:SetData("athleticsCooldownUntil", now + ATHLETICS_COOLDOWN)
+            SetSprintCooldown(ATHLETICS_COOLDOWN)
 
             client:Notify("Something in your leg gives out mid-stride. You're limping.")
 
@@ -1291,7 +1308,7 @@ ix.command.Add("Athletics", {
         end
 
         if (result < ATHLETICS_SUCCESS_THRESHOLD) then
-            character:SetData("athleticsCooldownUntil", now + ATHLETICS_FAIL_COOLDOWN)
+            SetSprintCooldown(ATHLETICS_FAIL_COOLDOWN)
             client:Notify("You push yourself and get nowhere.")
 
             return
@@ -1318,7 +1335,7 @@ ix.command.Add("Athletics", {
 
         client:SetWalkSpeed(ix.config.Get("walkSpeed") * multiplier)
         client:SetRunSpeed(ix.config.Get("runSpeed") * multiplier)
-        character:SetData("athleticsCooldownUntil", now + ATHLETICS_COOLDOWN)
+        SetSprintCooldown(ATHLETICS_COOLDOWN)
 
         -- shown under Other Conditions while it lasts. the percentage is rolled fresh each time, so
         -- it rides along on the instance rather than being fixed on the condition template
