@@ -1092,6 +1092,17 @@ PLUGIN.traits = {
         disadvantageSkills = {"kissass"}
     },
     {
+        id = "securedwallet",
+        name = "Secured Wallet",
+        description = "Inside pocket, buttoned down, and you check it more often than you'd admit. Anyone reaching for it has a harder time, and comes away with less.",
+        tier = 1,
+        effectText = "advantage when contesting a pickpocket, and halves what a successful one takes",
+        -- two flags because they apply at different moments: one on the contest roll, one on the
+        -- amount. both read directly by the Pickpocket command (charactersheets/sh_plugin.lua)
+        securesPickpocketContest = true,
+        halvesPickpocketLoss = true
+    },
+    {
         id = "anarchist",
         name = "Anarchist",
         description = "You've never once been talked into anything, and you're not about to start giving orders either. Whatever you psych yourself up for is your business alone.",

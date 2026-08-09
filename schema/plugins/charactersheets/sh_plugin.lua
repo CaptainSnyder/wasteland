@@ -11,6 +11,7 @@ ix.util.Include("cl_charsheet_tab.lua")
 ix.util.Include("cl_sheet.lua")
 ix.util.Include("cl_traits.lua")
 ix.util.Include("cl_buytraits.lua")
+ix.util.Include("cl_pickpocket.lua")
 ix.util.Include("cl_conditions.lua")
 ix.util.Include("cl_charsetup.lua")
 
@@ -356,6 +357,8 @@ if (SERVER) then
     util.AddNetworkString("ixCharSheetDeleteRelationship")
     util.AddNetworkString("ixOpenTraitList")
     util.AddNetworkString("ixOpenTraitPurchase")
+    util.AddNetworkString("ixPickpocketRequest")
+    util.AddNetworkString("ixPickpocketResponse")
     util.AddNetworkString("ixCharSheetBuyTrait")
     util.AddNetworkString("ixOpenConditionList")
     util.AddNetworkString("ixOpenHealthConditionList")
@@ -775,9 +778,23 @@ local function IsSkillForcedToFail(character, skill)
 end
 
 -- returns "advantage", "disadvantage", or "normal" based on the character's traits (advantage and disadvantage cancel out to normal if both apply)
-local function GetSkillRollMode(character, skill)
+-- everything a skill adds on top of the raw die: attribute modifier, invested points and trait
+-- bonuses. this is the "+ N (Sneaky Shit)" figure the roll line prints, and /pickpocket needs it
+-- without rolling anything, so it lives here rather than inline in PerformSkillCheck
+function GetSkillFlatBonus(character, skillData)
+    local attribMod = GetSkillModifier(character, skillData)
+    local invested = character:GetData("skills", {})[skillData.id] or 0
+
+    return attribMod + invested + GetTraitSkillBonus(character, skillData.id)
+end
+
+-- extraAdvantage is an advantage source supplied by the caller for this one roll - used by the
+-- pickpocket contest, where Secured Wallet grants advantage only on that specific Vigilance check
+-- rather than on every one. it feeds the normal calculation, so it still cancels against disadvantage
+-- instead of overriding it the way a Guaranteed mode does
+local function GetSkillRollMode(character, skill, extraAdvantage)
     local traitIDs = character:GetData("traits", {})
-    local hasAdvantage = false
+    local hasAdvantage = extraAdvantage == true
     local hasDisadvantage = false
 
     for _, tid in ipairs(traitIDs) do
@@ -877,7 +894,7 @@ end
 -- definition so callers can react to the outcome (e.g. a natural 20)
 -- forceMode ("advantage"/"neutral"/"disadvantage") overrides the character's traits and conditions for
 -- this one roll; leave it nil - as every non-UI caller does - for the usual behavior
-function PerformSkillCheck(client, skillID, modifier, forceMode)
+function PerformSkillCheck(client, skillID, modifier, forceMode, extraAdvantage)
     local character = client:GetCharacter()
 
     if (!character) then
@@ -892,15 +909,12 @@ function PerformSkillCheck(client, skillID, modifier, forceMode)
 
     modifier = modifier or 0
 
-    local attribMod = GetSkillModifier(character, skillData)
-    local invested = character:GetData("skills", {})[skillData.id] or 0
-    local traitBonus = GetTraitSkillBonus(character, skillData.id)
-    local flatBonus = attribMod + invested + traitBonus
+    local flatBonus = GetSkillFlatBonus(character, skillData)
 
     -- a forced mode wins outright - GetSkillRollMode isn't even consulted, so a player who picks
     -- Guaranteed Advantage gets it even when every trait they have says otherwise
     local forcedMode = ResolveForcedRollMode(forceMode)
-    local rollMode = forcedMode or GetSkillRollMode(character, skillData)
+    local rollMode = forcedMode or GetSkillRollMode(character, skillData, extraAdvantage)
     local rollA, rollB, diceRoll
 
     if (rollMode == "advantage") then
@@ -1578,6 +1592,154 @@ ix.command.Add("Rally", {
         end
     end
 })
+
+-- Pickpocketing is entirely opt-in on the victim's side: the target chooses Allow, Contest or Block,
+-- so there's deliberately no cooldown. A thief who keeps trying can simply be blocked every time,
+-- which makes spamming it pointless rather than something the code has to police
+local PICKPOCKET_MIN_SCRAP = 10
+local PICKPOCKET_BASE_PERCENT = 5
+local PICKPOCKET_REQUEST_TIMEOUT = 30
+
+-- keyed by the victim's SteamID64, holding the one attempt they're currently being asked about
+local pendingPickpockets = {}
+
+if (SERVER) then
+    ix.command.Add("Pickpocket", {
+        description = "Attempts to pick the pocket of whoever you're aiming at. They choose whether to allow, contest or block it.",
+        OnRun = function(self, client)
+            local character = client:GetCharacter()
+
+            if (!character) then
+                return
+            end
+
+            -- same 96 unit aim trace the medical items and /firstaid use
+            local target = GetOtherTreatmentTarget(client)
+
+            if (!target) then
+                client:Notify("You aren't aiming at anyone within reach.")
+                return
+            end
+
+            local targetCharacter = target:GetCharacter()
+
+            if (!targetCharacter) then
+                client:Notify("They have no character loaded.")
+                return
+            end
+
+            if (targetCharacter:GetMoney() <= PICKPOCKET_MIN_SCRAP) then
+                client:Notify("Your target doesn't have any scrap to steal!")
+                return
+            end
+
+            local skillData = FindSkillByID("sneakyshit")
+
+            if (!skillData) then
+                return
+            end
+
+            local percent = PICKPOCKET_BASE_PERCENT + GetSkillFlatBonus(character, skillData)
+
+            -- Secured Wallet halves the percentage, rounding down, so an 11% lift becomes 5%
+            if (GetTraitWithFlag(targetCharacter, "halvesPickpocketLoss")) then
+                percent = math.floor(percent / 2)
+            end
+
+            percent = math.Clamp(percent, 0, 100)
+
+            -- locked in now rather than recalculated on the answer, so the figure shown on the prompt
+            -- is the figure that actually changes hands
+            local amount = math.max(1, math.floor(targetCharacter:GetMoney() * percent / 100))
+            local requestID = math.random(1, 2147483647)
+
+            pendingPickpockets[target:SteamID64()] = {
+                thief = client,
+                id = requestID,
+                amount = amount,
+                expiresAt = os.time() + PICKPOCKET_REQUEST_TIMEOUT
+            }
+
+            net.Start("ixPickpocketRequest")
+                net.WriteUInt(requestID, 32)
+                net.WriteUInt(amount, 32)
+                net.WriteUInt(PICKPOCKET_REQUEST_TIMEOUT, 8)
+            net.Send(target)
+
+            client:Notify(string.format("You reach for %s's pocket...", target:Name()))
+        end
+    })
+
+    net.Receive("ixPickpocketResponse", function(length, client)
+        local character = client:GetCharacter()
+
+        if (!character) then
+            return
+        end
+
+        local requestID = net.ReadUInt(32)
+        local choice = net.ReadString()
+        local pending = pendingPickpockets[client:SteamID64()]
+
+        -- validated rather than trusted: the id has to match the request the server actually sent to
+        -- this specific player, so a crafted message can't invent a theft or answer someone else's
+        if (!pending or pending.id != requestID or os.time() > pending.expiresAt) then
+            pendingPickpockets[client:SteamID64()] = nil
+            return
+        end
+
+        pendingPickpockets[client:SteamID64()] = nil
+
+        local thief = pending.thief
+
+        if (!IsValid(thief) or !thief:GetCharacter()) then
+            return
+        end
+
+        if (choice == "block") then
+            client:Notify("You block the attempt. Please state in LOOC why you blocked it.")
+            thief:Notify(string.format("%s blocks the attempt outright.", client:Name()))
+
+            return
+        end
+
+        if (choice == "contest") then
+            -- both rolls go through PerformSkillCheck, so the whole contest plays out in chat for
+            -- anyone nearby to read rather than resolving invisibly
+            local sneak = PerformSkillCheck(thief, "sneakyshit")
+            local secured = GetTraitWithFlag(character, "securesPickpocketContest") != nil
+            local notice = PerformSkillCheck(client, "vigilance", 0, nil, secured)
+
+            if (!sneak or !notice) then
+                return
+            end
+
+            -- ties go to the thief: the defender has to actually beat them, not just match
+            if (notice > sneak) then
+                client:Notify("You feel the hand at your pocket and step clear before they find anything.")
+                thief:Notify(string.format("%s catches you at it. You come away with nothing.", client:Name()))
+
+                return
+            end
+        elseif (choice != "allow") then
+            return
+        end
+
+        -- re-clamped against their balance now, in case it dropped while they were deciding
+        local amount = math.min(pending.amount, character:GetMoney())
+
+        if (amount <= 0) then
+            thief:Notify("Their pockets are empty by the time you get there.")
+            return
+        end
+
+        character:TakeMoney(amount)
+        thief:GetCharacter():GiveMoney(amount)
+
+        client:Notify(string.format("You come up %d scrap short.", amount))
+        thief:Notify(string.format("You lift %d scrap off %s.", amount, client:Name()))
+    end)
+end
 
 ix.command.Add("CharSetSkill", {
     description = "Sets a character's invested points for a skill (capped at 10).",
