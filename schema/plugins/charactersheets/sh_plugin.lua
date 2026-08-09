@@ -1375,8 +1375,23 @@ ix.command.Add("Athletics", {
     end
 })
 
+-- returns the first trait a character holds carrying the given flag, or nil. handy where the flag's
+-- value matters and not just its presence, e.g. Made for Running's athleticsBonusPercent
+local function GetTraitWithFlag(character, flag)
+    for _, tid in ipairs(character:GetData("traits", {})) do
+        local trait = traitsByID[tid]
+
+        if (trait and trait[flag]) then
+            return trait
+        end
+    end
+
+    return nil
+end
+
 -- Rally never affects the caller. That's the whole point of the skill: it's the one thing on the sheet
--- that does nothing for you alone, which is what separates leadership from a personal buff
+-- that does nothing for you alone, which is what separates leadership from a personal buff.
+-- Anarchist is the deliberate inversion of that - see ralliesSelfOnly below
 local RALLY_RADIUS_AT_LEVEL_FIVE = 512
 -- an untrained leader can still reach whoever is stood right next to them, rather than the command
 -- succeeding and silently affecting nobody
@@ -1388,7 +1403,7 @@ local RALLY_SUCCESS_THRESHOLD = 10
 local RALLY_DURATION = 5 * 60
 
 ix.command.Add("Rally", {
-    description = "Rallies nearby allies for 5 minutes, granting advantage on a skill. Never affects you, reaches further the more Leadership you have invested, and can only be used once an hour.",
+    description = "Rallies nearby allies for 5 minutes, granting advantage on a skill. Never affects you unless you are an Anarchist, reaches further the more Leadership you have invested, and can only be used once an hour.",
     arguments = {
         ix.type.string
     },
@@ -1470,20 +1485,31 @@ ix.command.Add("Rally", {
 
         local hasBonus = bonusPool and #bonusPool > 0
 
-        -- no line of sight test on purpose: someone through a wall can still hear you shouting.
-        -- everyone inside the radius is reached, so there's no need to rank them by distance
+        -- an Anarchist doesn't lead anyone: their rally reaches themselves and nobody else, which is
+        -- the one case where the caller is a valid target
+        local selfOnly = GetTraitWithFlag(character, "ralliesSelfOnly") != nil
         local candidates = {}
-        local origin = client:GetPos()
 
-        for _, ply in ipairs(player.GetAll()) do
-            if (ply != client and IsValid(ply) and ply:Alive() and ply:GetCharacter()) then
-                if (origin:Distance(ply:GetPos()) <= radius) then
-                    candidates[#candidates + 1] = ply
+        if (selfOnly) then
+            candidates[1] = client
+        else
+            -- no line of sight test on purpose: someone through a wall can still hear you shouting.
+            -- everyone inside the radius is reached, so there's no need to rank them by distance
+            local origin = client:GetPos()
+
+            for _, ply in ipairs(player.GetAll()) do
+                if (ply != client and IsValid(ply) and ply:Alive() and ply:GetCharacter()) then
+                    -- an Anarchist in earshot simply isn't listening
+                    if (origin:Distance(ply:GetPos()) <= radius
+                        and !GetTraitWithFlag(ply:GetCharacter(), "refusesRally")) then
+                        candidates[#candidates + 1] = ply
+                    end
                 end
             end
         end
 
         local reached = 0
+        local selfSummary
 
         for _, ply in ipairs(candidates) do
             local targetCharacter = ply:GetCharacter()
@@ -1507,10 +1533,15 @@ ix.command.Add("Rally", {
                     advantageSkills = grantedSkills
                 })
 
-                ply:Notify(string.format(
-                    "%s rallies you - advantage on %s for the next 5 minutes.",
-                    client:Name(), summary
-                ))
+                -- the self-only case gets its own wording below rather than being told it rallied itself
+                if (ply != client) then
+                    ply:Notify(string.format(
+                        "%s rallies you - advantage on %s for the next 5 minutes.",
+                        client:Name(), summary
+                    ))
+                else
+                    selfSummary = summary
+                end
 
                 reached = reached + 1
             end
@@ -1518,7 +1549,11 @@ ix.command.Add("Rally", {
 
         character:SetData("rallyCooldownUntil", now + RALLY_COOLDOWN)
 
-        if (reached == 0) then
+        if (selfSummary) then
+            client:Notify(string.format(
+                "You talk yourself into it - advantage on %s for the next 5 minutes.", selfSummary
+            ))
+        elseif (reached == 0) then
             client:Notify("You call out, but there's nobody in earshot to hear it.")
         else
             -- the leader isn't told which second skill each person got; that's theirs to report back

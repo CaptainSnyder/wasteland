@@ -1092,6 +1092,17 @@ PLUGIN.traits = {
         disadvantageSkills = {"kissass"}
     },
     {
+        id = "anarchist",
+        name = "Anarchist",
+        description = "You've never once been talked into anything, and you're not about to start giving orders either. Whatever you psych yourself up for is your business alone.",
+        tier = 1,
+        effectText = "cannot be rallied by anyone else, and your own /rally affects only you",
+        -- two flags rather than one, so either half could be given to another trait on its own -
+        -- both are read directly by the Rally command (charactersheets/sh_plugin.lua)
+        refusesRally = true,
+        ralliesSelfOnly = true
+    },
+    {
         id = "inspirationalleader",
         name = "Inspirational Leader",
         description = "You don't just tell people what to do, you make them believe it's worth doing. Whatever you call for, something else in them sharpens up alongside it.",
