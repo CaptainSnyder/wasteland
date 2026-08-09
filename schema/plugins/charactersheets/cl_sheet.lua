@@ -59,7 +59,7 @@ end
 -- small popup used for both adding a new relationship entry and editing an existing one
 local function OpenRelationshipEditor(existing, onSave)
     local popup = vgui.Create("DFrame")
-    popup:SetSize(320, 270)
+    popup:SetSize(320, 300)
     popup:Center()
     popup:SetTitle(existing and "Edit Relationship" or "Add Relationship")
     popup:MakePopup()
@@ -96,8 +96,18 @@ local function OpenRelationshipEditor(existing, onSave)
     valueSlider:SetDecimals(0)
     valueSlider:SetValue(existing and existing.value or 50)
 
+    local privateCheck = popup:Add("DCheckBoxLabel")
+    privateCheck:SetPos(10, 212)
+    privateCheck:SetText("Private")
+    privateCheck:SetValue(existing and existing.private or false)
+    privateCheck:SizeToContents()
+    privateCheck:SetTooltip(
+        "Other players see \"My thoughts on this person are private.\" instead of what you wrote.\n" ..
+        "The name and relationship value stay visible."
+    )
+
     local saveButton = popup:Add("DButton")
-    saveButton:SetPos(10, 220)
+    saveButton:SetPos(10, 240)
     saveButton:SetSize(300, 30)
     saveButton:SetText("Save")
 
@@ -105,7 +115,8 @@ local function OpenRelationshipEditor(existing, onSave)
         local payload = {
             name = string.Trim(nameEntry:GetValue()),
             thoughts = thoughtsEntry:GetValue(),
-            value = math.Round(valueSlider:GetValue())
+            value = math.Round(valueSlider:GetValue()),
+            private = privateCheck:GetChecked()
         }
 
         if (existing) then
@@ -238,7 +249,15 @@ local function BuildRelationshipsPage(parent, data)
         -- quotes go on before wrapping so they're measured as part of the text and the closing one
         -- lands naturally at the end of the last line
         if (thoughts != "") then
-            nameButton:SetTooltipPanel(BuildThoughtsTooltip(WrapTooltipText('"' .. thoughts .. '"')))
+            local tooltipText = WrapTooltipText('"' .. thoughts .. '"')
+
+            -- the owner always sees what they actually wrote (the server only redacts it for other
+            -- viewers), so they get a reminder that this one is hidden from everyone else
+            if (entry.private and data.isOwner) then
+                tooltipText = tooltipText .. "\n\n(Private - only you can read this)"
+            end
+
+            nameButton:SetTooltipPanel(BuildThoughtsTooltip(tooltipText))
         else
             nameButton:SetTooltipPanel(BuildThoughtsTooltip("Nothing written down about them yet."))
         end

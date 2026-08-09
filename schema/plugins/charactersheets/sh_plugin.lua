@@ -1333,7 +1333,26 @@ local function SendCharacterSheet(client, target)
         target:SetData("relationships", relationships)
     end
 
-    data.relationships = relationships
+    if (isOwner) then
+        data.relationships = relationships
+    else
+        -- an entry marked private keeps its name and value public but has the thoughts text swapped
+        -- out before it ever leaves the server. redacting this client-side would be no protection at
+        -- all: anything sent to a client can be read there regardless of what the UI chooses to draw
+        local publicRelationships = {}
+
+        for _, entry in ipairs(relationships) do
+            publicRelationships[#publicRelationships + 1] = {
+                id = entry.id,
+                name = entry.name,
+                value = entry.value,
+                private = entry.private,
+                thoughts = entry.private and "My thoughts on this person are private." or entry.thoughts
+            }
+        end
+
+        data.relationships = publicRelationships
+    end
 
     -- info fields and biography are public, sent to whoever is viewing regardless of ownership
     data.info = target:GetData("sheetInfo", {})
@@ -1555,7 +1574,12 @@ if (SERVER) then
         local relationships = character:GetData("relationships", {})
         local id = tostring(os.time()) .. "_" .. tostring(math.random(1000, 9999))
 
-        table.insert(relationships, {id = id, name = name, thoughts = thoughts, value = value})
+        table.insert(relationships, {
+            id = id, name = name, thoughts = thoughts, value = value,
+            -- normalized to a real boolean rather than trusted as-is; this comes off the wire
+            private = payload.private == true
+        })
+
         character:SetData("relationships", relationships)
 
         SendCharacterSheet(client, character)
@@ -1586,6 +1610,8 @@ if (SERVER) then
                 if (isstring(payload.thoughts)) then
                     entry.thoughts = payload.thoughts:sub(1, 500)
                 end
+
+                entry.private = payload.private == true
 
                 if (payload.value) then
                     entry.value = math.Clamp(math.floor(tonumber(payload.value) or entry.value), 1, 100)
