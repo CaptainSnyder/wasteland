@@ -901,20 +901,21 @@ end
 -- active health condition (region-specific ones included, not just the region-less "general" ones -
 -- the diagram only shows color, this list is where you actually read what's wrong)
 local function BuildHealthPage(parent, data)
-    local diagram = vgui.Create("ixBodyDiagram", parent)
-    diagram:Dock(LEFT)
-    diagram:SetWide(220)
-    diagram:DockMargin(10, 10, 10, 10)
-    diagram:SetConditions(data.conditions, data.isOwner)
-
+    -- created before the diagram so it docks to its left: siblings docked LEFT stack in creation order
     local barContainer = parent:Add("DPanel")
     barContainer:Dock(LEFT)
     -- sized for the widest label it has to hold ("100/100" in DermaDefaultBold), not for the bar -
     -- at the old 40px the text clipped to "93/1...". the bar keeps its original width via the margin
     -- below, so only the label gained room
     barContainer:SetWide(64)
-    barContainer:DockMargin(0, 10, 10, 10)
+    barContainer:DockMargin(10, 10, 0, 10)
     barContainer.Paint = function() end
+
+    local diagram = vgui.Create("ixBodyDiagram", parent)
+    diagram:Dock(LEFT)
+    diagram:SetWide(220)
+    diagram:DockMargin(10, 10, 10, 10)
+    diagram:SetConditions(data.conditions, data.isOwner)
 
     local maxHealth = (data.maxHealth and data.maxHealth > 0) and data.maxHealth or 100
     local fraction = math.Clamp((data.health or 0) / maxHealth, 0, 1)
