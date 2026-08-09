@@ -1059,10 +1059,15 @@ ix.command.Add("Pray", {
 -- the cap is on the patient, not the medic: one person can patch up as many others as they like, but
 -- nobody gains health this way more than once every 12 hours
 local FIRST_AID_COOLDOWN = 12 * 3600
+-- a failed attempt only locks the patient out briefly. the 12 hours is the price of actually being
+-- healed, and this is just enough to stop the roll being spammed until it lands
+local FIRST_AID_FAIL_COOLDOWN = 60
+-- 10 on the total, matching the bar the scavenging and harvesting checks already use
+local FIRST_AID_SUCCESS_THRESHOLD = 10
 local FIRST_AID_HEALTH_CAP = 100
 
 ix.command.Add("FirstAid", {
-    description = "Rolls First Aid to patch up whoever you're aiming at, or yourself if you aren't. Anyone can only be healed this way once every 12 hours.",
+    description = "Rolls First Aid to patch up whoever you're aiming at, or yourself if you aren't. Needs a 10 or better, and anyone can only be healed this way once every 12 hours.",
     OnRun = function(self, client)
         local character = client:GetCharacter()
 
@@ -1122,6 +1127,20 @@ ix.command.Add("FirstAid", {
             return
         end
 
+        -- shared by both ways an attempt can come to nothing, so a wasted try never costs the full
+        -- 12 hours - that's reserved for actually having been healed
+        local function FailAttempt(reason)
+            targetCharacter:SetData("firstAidCooldownUntil", now + FIRST_AID_FAIL_COOLDOWN)
+            client:Notify(reason)
+        end
+
+        if (result < FIRST_AID_SUCCESS_THRESHOLD) then
+            FailAttempt(isSelf and "You fail to provide any first aid."
+                or ("You fail to provide any first aid to " .. target:Name() .. "."))
+
+            return
+        end
+
         -- the flat First Aid bonus is whatever the roll added on top of the raw die face - i.e. the
         -- same "+ N (First Aid)" figure the roll line prints, attributes and invested points included
         local flatBonus = result - diceRoll
@@ -1132,10 +1151,10 @@ ix.command.Add("FirstAid", {
 
         local healAmount = math.floor(diceRoll / 2) + flatBonus
 
-        -- a botched attempt deliberately doesn't burn the cooldown: the 12 hours is a limit on
-        -- *gaining* health, and nobody gained any here
+        -- a roll can clear 10 and still heal nothing if their First Aid bonus is deeply negative,
+        -- since the heal uses half the raw die face rather than the total. treated as a failure
         if (healAmount <= 0) then
-            client:Notify(isSelf and "You make a mess of it and end up no better off."
+            FailAttempt(isSelf and "You make a mess of it and end up no better off."
                 or ("You make a mess of it and " .. target:Name() .. " is no better off."))
 
             return
