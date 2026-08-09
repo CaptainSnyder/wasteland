@@ -359,6 +359,9 @@ if (SERVER) then
     util.AddNetworkString("ixOpenTraitPurchase")
     util.AddNetworkString("ixPickpocketRequest")
     util.AddNetworkString("ixPickpocketResponse")
+    util.AddNetworkString("ixPickpocketWaiting")
+    util.AddNetworkString("ixPickpocketCancel")
+    util.AddNetworkString("ixPickpocketDismiss")
     util.AddNetworkString("ixCharSheetBuyTrait")
     util.AddNetworkString("ixOpenConditionList")
     util.AddNetworkString("ixOpenHealthConditionList")
@@ -1599,13 +1602,27 @@ ix.command.Add("Rally", {
 local PICKPOCKET_MIN_SCRAP = 10
 local PICKPOCKET_BASE_PERCENT = 5
 local PICKPOCKET_REQUEST_TIMEOUT = 30
+-- the victim isn't prompted straight away, so the moment the window appears doesn't point straight at
+-- whoever is stood closest. the thief is held in place by their own window for the whole wait
+local PICKPOCKET_DELAY = 3
 
--- keyed by the victim's SteamID64, holding the one attempt they're currently being asked about
+-- keyed by the victim's SteamID64, holding the one attempt they're currently being asked about, plus
+-- a reverse map so a thief cancelling can find their own attempt without scanning
 local pendingPickpockets = {}
+local pendingPickpocketsByThief = {}
+
+local function ClearPickpocket(entry)
+    if (!entry) then
+        return
+    end
+
+    pendingPickpockets[entry.victimID] = nil
+    pendingPickpocketsByThief[entry.thiefID] = nil
+end
 
 if (SERVER) then
     ix.command.Add("Pickpocket", {
-        description = "Attempts to pick the pocket of whoever you're aiming at. They choose whether to allow, contest or block it.",
+        description = "Attempts to pick the pocket of whoever you are aiming at. Takes a few seconds, holds you in place while they decide, and they choose whether to allow, contest or block it.",
         OnRun = function(self, client)
             local character = client:GetCharacter()
 
@@ -1652,23 +1669,92 @@ if (SERVER) then
             -- is the figure that actually changes hands
             local amount = math.max(1, math.floor(targetCharacter:GetMoney() * percent / 100))
             local requestID = math.random(1, 2147483647)
+            local victimID = target:SteamID64()
+            local thiefID = client:SteamID64()
 
-            pendingPickpockets[target:SteamID64()] = {
+            local entry = {
                 thief = client,
+                victim = target,
+                thiefID = thiefID,
+                victimID = victimID,
                 id = requestID,
                 amount = amount,
-                expiresAt = os.time() + PICKPOCKET_REQUEST_TIMEOUT
+                expiresAt = os.time() + PICKPOCKET_DELAY + PICKPOCKET_REQUEST_TIMEOUT
             }
 
-            net.Start("ixPickpocketRequest")
-                net.WriteUInt(requestID, 32)
-                net.WriteUInt(amount, 32)
-                net.WriteUInt(PICKPOCKET_REQUEST_TIMEOUT, 8)
-            net.Send(target)
+            pendingPickpockets[victimID] = entry
+            pendingPickpocketsByThief[thiefID] = entry
+
+            -- the thief is pinned to this window for the whole attempt. that's the point: they can't
+            -- line up a shot while their target reads a prompt, so /pickpocket can't be used to freeze
+            -- someone in place and kill them
+            net.Start("ixPickpocketWaiting")
+            net.Send(client)
+
+            timer.Simple(PICKPOCKET_DELAY, function()
+                -- the thief may have backed out during the wait, or the target may have gone
+                if (pendingPickpockets[victimID] != entry) then
+                    return
+                end
+
+                if (!IsValid(target) or !target:GetCharacter()) then
+                    ClearPickpocket(entry)
+
+                    if (IsValid(client)) then
+                        net.Start("ixPickpocketDismiss")
+                        net.Send(client)
+
+                        client:Notify("They're gone before you get the chance.")
+                    end
+
+                    return
+                end
+
+                entry.promptSent = true
+
+                net.Start("ixPickpocketRequest")
+                    net.WriteUInt(requestID, 32)
+                    net.WriteUInt(amount, 32)
+                    net.WriteUInt(PICKPOCKET_REQUEST_TIMEOUT, 8)
+                net.Send(target)
+            end)
+
+            -- nothing else prunes an attempt that's simply never answered, so it clears itself
+            timer.Simple(PICKPOCKET_DELAY + PICKPOCKET_REQUEST_TIMEOUT + 1, function()
+                if (pendingPickpockets[victimID] == entry) then
+                    ClearPickpocket(entry)
+
+                    if (IsValid(client)) then
+                        net.Start("ixPickpocketDismiss")
+                        net.Send(client)
+
+                        client:Notify("They never react. You let it go.")
+                    end
+                end
+            end)
 
             client:Notify(string.format("You reach for %s's pocket...", target:Name()))
         end
     })
+
+    net.Receive("ixPickpocketCancel", function(length, client)
+        local entry = pendingPickpocketsByThief[client:SteamID64()]
+
+        if (!entry) then
+            return
+        end
+
+        ClearPickpocket(entry)
+
+        -- if the prompt already went out, take it back off their screen rather than leaving them
+        -- answering an attempt that no longer exists
+        if (entry.promptSent and IsValid(entry.victim)) then
+            net.Start("ixPickpocketDismiss")
+            net.Send(entry.victim)
+        end
+
+        client:Notify("You think better of it and back off.")
+    end)
 
     net.Receive("ixPickpocketResponse", function(length, client)
         local character = client:GetCharacter()
@@ -1684,17 +1770,21 @@ if (SERVER) then
         -- validated rather than trusted: the id has to match the request the server actually sent to
         -- this specific player, so a crafted message can't invent a theft or answer someone else's
         if (!pending or pending.id != requestID or os.time() > pending.expiresAt) then
-            pendingPickpockets[client:SteamID64()] = nil
+            ClearPickpocket(pending)
             return
         end
 
-        pendingPickpockets[client:SteamID64()] = nil
+        ClearPickpocket(pending)
 
         local thief = pending.thief
 
         if (!IsValid(thief) or !thief:GetCharacter()) then
             return
         end
+
+        -- the thief's waiting window goes away whatever the answer turns out to be
+        net.Start("ixPickpocketDismiss")
+        net.Send(thief)
 
         if (choice == "block") then
             client:Notify("You block the attempt. Please state in LOOC why you blocked it.")

@@ -2,6 +2,60 @@
 -- who's stood next to you, and naming them here would hand out information the character wouldn't
 -- actually have in the moment
 local promptFrame
+local waitingFrame
+
+-- the thief's side. holding them here for the whole attempt is the point of it existing: they can't
+-- be doing anything else while their target reads a prompt, so /pickpocket can't be used to pin
+-- someone in place. closing it is allowed, but it calls the attempt off rather than freeing them up
+net.Receive("ixPickpocketWaiting", function()
+    if (IsValid(waitingFrame)) then
+        waitingFrame:Remove()
+    end
+
+    local frame = vgui.Create("DFrame")
+    frame:SetSize(320, 130)
+    frame:Center()
+    frame:SetTitle("Picking a Pocket")
+    frame:MakePopup()
+
+    waitingFrame = frame
+
+    local label = frame:Add("DLabel")
+    label:SetText("The victim is deciding...")
+    label:SetFont("DermaDefaultBold")
+    label:SetTextColor(Color(217, 179, 92))
+    label:SetContentAlignment(5)
+    label:Dock(FILL)
+    label:DockMargin(12, 12, 12, 12)
+
+    -- the X is intercepted rather than removed, so backing out stays possible but always deliberate
+    frame.btnClose.DoClick = function()
+        Derma_Query(
+            "If you close this window, you cancel your attempt to pickpocket.",
+            "Cancel Attempt?",
+            "Cancel the attempt", function()
+                net.Start("ixPickpocketCancel")
+                net.SendToServer()
+
+                if (IsValid(frame)) then
+                    frame:Remove()
+                end
+            end,
+            "Keep waiting", function() end
+        )
+    end
+end)
+
+-- sent to whichever side still has something open once the attempt is over, cancelled or expired
+net.Receive("ixPickpocketDismiss", function()
+    if (IsValid(waitingFrame)) then
+        waitingFrame:Remove()
+    end
+
+    if (IsValid(promptFrame)) then
+        promptFrame:Remove()
+    end
+end)
 
 net.Receive("ixPickpocketRequest", function()
     local requestID = net.ReadUInt(32)
