@@ -727,6 +727,29 @@ PLUGIN.traits = {
         -- doubles the number of independent harvest attempts (each its own Survival roll) when
         -- harvesting a creature corpse - checked directly in the corpse entity's Use function
         -- (hunting/entities/entities/molerat_corpse.lua), not a modifier
+    },
+
+    -- age traits: exact mirrors of each other, so one's advantage is the other's disadvantage.
+    -- tier 3 because age is a story detail a GM signs off on, not something anyone can just claim -
+    -- there's no age field on a character, so the requirement in each description is enforced by
+    -- staff at the point the trait is granted. deliberately roll-mode only rather than flat stats:
+    -- a large share of characters could plausibly qualify for one of these, so the effect should be
+    -- situational instead of a permanent edge everyone carries
+    {
+        id = "young",
+        name = "Young",
+        description = "You're under 21. You've got the energy and the fight in you that the older folks lost years ago, but nobody in this wasteland is going to take orders from a kid, and threatening someone twice your age tends to get you laughed at.",
+        tier = 3,
+        advantageSkills = {"athletics", "brawling"},
+        disadvantageSkills = {"hardass", "leadership"}
+    },
+    {
+        id = "old",
+        name = "Old",
+        description = "You're 60 or older. Six decades out here bought you a voice people actually listen to and a stare that ends arguments, but your body settled that debt a long time ago - running and fighting are young people's work now.",
+        tier = 3,
+        advantageSkills = {"hardass", "leadership"},
+        disadvantageSkills = {"athletics", "brawling"}
     }
 }
 
