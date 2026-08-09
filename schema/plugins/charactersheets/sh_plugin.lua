@@ -1447,38 +1447,28 @@ ix.command.Add("Rally", {
             radius = radius * 2
         end
 
-        -- the skills everyone in earshot ends up with advantage on. Inspirational Leader adds a second
-        -- one drawn at random from the same category - rolled once here rather than per person, so the
-        -- whole group is rallied around the same pair rather than each getting something different
-        local grantedSkills = {skillData.id}
-        local bonusSkill
+        -- Inspirational Leader adds a second skill drawn from the same category. the pool is built
+        -- once, but the pick happens per person down in the loop, so everyone sharpens up in a
+        -- different way off the same shout
+        local bonusPool
 
         for _, tid in ipairs(character:GetData("traits", {})) do
             local trait = traitsByID[tid]
 
             if (trait and trait.rallyBonusSkillInCategory) then
-                local pool = {}
+                bonusPool = {}
 
                 for _, candidate in ipairs(GetSkillsInCategory(skillData.category)) do
                     if (candidate.id != skillData.id) then
-                        pool[#pool + 1] = candidate
+                        bonusPool[#bonusPool + 1] = candidate
                     end
-                end
-
-                if (#pool > 0) then
-                    bonusSkill = pool[math.random(#pool)]
-                    grantedSkills[#grantedSkills + 1] = bonusSkill.id
                 end
 
                 break
             end
         end
 
-        local skillSummary = skillData.name
-
-        if (bonusSkill) then
-            skillSummary = skillSummary .. " and " .. bonusSkill.name
-        end
+        local hasBonus = bonusPool and #bonusPool > 0
 
         -- no line of sight test on purpose: someone through a wall can still hear you shouting.
         -- everyone inside the radius is reached, so there's no need to rank them by distance
@@ -1499,6 +1489,18 @@ ix.command.Add("Rally", {
             local targetCharacter = ply:GetCharacter()
 
             if (targetCharacter) then
+                -- a fresh table per person: sharing one would hand every condition the same list, and
+                -- appending a bonus skill would then pile up across everybody
+                local grantedSkills = {skillData.id}
+                local summary = skillData.name
+
+                if (hasBonus) then
+                    local bonusSkill = bonusPool[math.random(#bonusPool)]
+
+                    grantedSkills[#grantedSkills + 1] = bonusSkill.id
+                    summary = summary .. " and " .. bonusSkill.name
+                end
+
                 -- one Rallied condition per person, matched on sourceId, so a fresh rally replaces
                 -- whatever the last one granted rather than stacking alongside it
                 ApplyCharacterCondition(targetCharacter, "rallied", RALLY_DURATION / 3600, nil, nil, {
@@ -1507,7 +1509,7 @@ ix.command.Add("Rally", {
 
                 ply:Notify(string.format(
                     "%s rallies you - advantage on %s for the next 5 minutes.",
-                    client:Name(), skillSummary
+                    client:Name(), summary
                 ))
 
                 reached = reached + 1
@@ -1519,9 +1521,11 @@ ix.command.Add("Rally", {
         if (reached == 0) then
             client:Notify("You call out, but there's nobody in earshot to hear it.")
         else
+            -- the leader isn't told which second skill each person got; that's theirs to report back
             client:Notify(string.format(
-                "You rally %d %s - advantage on %s for the next 5 minutes.",
-                reached, reached == 1 and "person" or "people", skillSummary
+                "You rally %d %s - advantage on %s for the next 5 minutes%s.",
+                reached, reached == 1 and "person" or "people", skillData.name,
+                hasBonus and ", and something else besides for each of them" or ""
             ))
         end
     end
