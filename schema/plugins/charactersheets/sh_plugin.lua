@@ -898,7 +898,10 @@ end
 -- definition so callers can react to the outcome (e.g. a natural 20)
 -- forceMode ("advantage"/"neutral"/"disadvantage") overrides the character's traits and conditions for
 -- this one roll; leave it nil - as every non-UI caller does - for the usual behavior
-function PerformSkillCheck(client, skillID, modifier, forceMode, extraAdvantage)
+-- receivers narrows who sees the roll in chat. left nil it reaches everyone in normal chat range, as
+-- the attribroll class's CanHear decides; supplying a list bypasses that filter entirely, which is how
+-- the stealth contest shows both rolls to the sneaker and to nobody else
+function PerformSkillCheck(client, skillID, modifier, forceMode, extraAdvantage, receivers)
     local character = client:GetCharacter()
 
     if (!character) then
@@ -987,7 +990,7 @@ function PerformSkillCheck(client, skillID, modifier, forceMode, extraAdvantage)
         segments[#segments + 1] = {color = red, text = " (Critical Failure!)"}
     end
 
-    ix.chat.Send(client, "attribroll", "", nil, nil, {diceSegments = segments})
+    ix.chat.Send(client, "attribroll", "", nil, receivers, {diceSegments = segments})
     ix.log.Add(client, "roll", result, 20 + flatBonus)
 
     return result, diceRoll, skillData
@@ -1546,36 +1549,6 @@ if (SERVER) then
     -- observer-and-sneaker pair, so walking past three hidden people rolls against each of them
     local SNEAK_SPOT_COOLDOWN = 180
 
-    -- rolled without announcing: this fires automatically whenever anyone walks past anyone, and
-    -- putting two roll lines in chat every time would bury the rolls players actually made themselves.
-    -- advantage and disadvantage from traits and conditions still apply
-    local function RollSkillSilently(client, skillID)
-        local character = client:GetCharacter()
-
-        if (!character) then
-            return
-        end
-
-        local skillData = FindSkillByID(skillID)
-
-        if (!skillData) then
-            return
-        end
-
-        local rollMode = GetSkillRollMode(character, skillData)
-        local diceRoll
-
-        if (rollMode == "advantage") then
-            diceRoll = math.max(math.random(1, 20), math.random(1, 20))
-        elseif (rollMode == "disadvantage") then
-            diceRoll = math.min(math.random(1, 20), math.random(1, 20))
-        else
-            diceRoll = math.random(1, 20)
-        end
-
-        return diceRoll + GetSkillFlatBonus(character, skillData)
-    end
-
     local function SendSpotted(observer, sneaker, spotted)
         net.Start("ixSneakSpotted")
             net.WriteEntity(sneaker)
@@ -1643,8 +1616,12 @@ if (SERVER) then
 
         observer.ixSneakSpotAttempts[sneaker] = now
 
-        local notice = RollSkillSilently(observer, "vigilance")
-        local hide = RollSkillSilently(sneaker, "sneakyshit")
+        -- both rolls are sent to the sneaker and to nobody else. they're the one with a decision to
+        -- make off the back of it - knowing someone nearly had you is the whole tension of hiding -
+        -- while the observer only ever learns whether they found anything
+        local receivers = {sneaker}
+        local notice = PerformSkillCheck(observer, "vigilance", 0, nil, nil, receivers)
+        local hide = PerformSkillCheck(sneaker, "sneakyshit", 0, nil, nil, receivers)
 
         -- ties go to the sneaker, matching how the pickpocket contest resolves
         if (notice and hide and notice > hide) then
