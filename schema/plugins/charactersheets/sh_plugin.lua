@@ -1574,7 +1574,8 @@ if (SERVER) then
 
     -- clears everyone's record of having spotted this player, so a fresh sneak starts fresh rather
     -- than inheriting who found them last time
-    local function ResetSpotters(sneaker)
+    -- global so the admin cooldown-clearing command can reach it from outside this block
+    function ResetSneakSpotters(sneaker)
         sneaker.ixSneakSpottedBy = {}
 
         net.Start("ixSneakSpotted")
@@ -1704,7 +1705,7 @@ if (SERVER) then
 
         client:SetNWInt("ixSneakAlpha", SNEAK_VISIBLE_ALPHA)
         client:DrawShadow(true)
-        ResetSpotters(client)
+        ResetSneakSpotters(client)
     end
 
     timer.Create("ixSneakyShitFadeTick", SNEAK_FADE_INTERVAL, 0, function()
@@ -1771,7 +1772,7 @@ if (SERVER) then
             ResetMovementSpeed(client)
 
             -- nobody has spotted them yet, whoever saw them last time they sneaked
-            ResetSpotters(client)
+            ResetSneakSpotters(client)
             BeginSneakFade(client)
             client:Notify("You crouch low and go still, blending into your surroundings.")
     end
@@ -2408,6 +2409,57 @@ ix.command.Add("CharClearConditions", {
         target:SetData("conditions", {})
 
         return string.format("Cleared all active conditions from %s.", target:GetName())
+    end
+})
+
+-- a testing convenience: most of the command cooldowns run for minutes or hours, which makes trying
+-- anything twice in a row painful. everything here is either character data or per-player state, so it
+-- can all be cleared without touching the systems that set it
+ix.command.Add("CharClearCooldowns", {
+    description = "Clears a character's command cooldowns. Targets yourself if no character is given.",
+    privilege = "Manage Character Cooldowns",
+    adminOnly = true,
+    arguments = {
+        bit.bor(ix.type.character, ix.type.optional)
+    },
+    OnRun = function(self, client, target)
+        target = target or client:GetCharacter()
+
+        if (!target) then
+            return
+        end
+
+        for _, key in ipairs({
+            "athleticsCooldownUntil", "firstAidCooldownUntil",
+            "prayerCooldownUntil", "rallyCooldownUntil"
+        }) do
+            target:SetData(key, 0)
+        end
+
+        -- the readouts that mirror those timers, or the sheet would still claim a lockout was running
+        RemoveCharacterCondition(target, "recentlytreated")
+        RemoveCharacterCondition(target, "recentlysprint")
+
+        local targetPlayer = target:GetPlayer()
+
+        if (IsValid(targetPlayer)) then
+            -- stealth spotting lives on the player rather than the character, and runs both ways:
+            -- their attempts against everyone else, and everyone else's attempts against them
+            targetPlayer.ixSneakSpotAttempts = {}
+
+            for _, ply in ipairs(player.GetAll()) do
+                if (ply.ixSneakSpotAttempts) then
+                    ply.ixSneakSpotAttempts[targetPlayer] = nil
+                end
+            end
+
+            -- also forgets who had already spotted them, so a sneak can be retested from hidden
+            if (ResetSneakSpotters) then
+                ResetSneakSpotters(targetPlayer)
+            end
+        end
+
+        return string.format("Cleared %s's cooldowns.", target:GetName())
     end
 })
 
