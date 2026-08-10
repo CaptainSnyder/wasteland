@@ -6,6 +6,9 @@ RECIPE.requirements = {
 	["craft_uncom_casings"] = 4,
 	["craft_uncom_lead"] = 3
 }
+RECIPE.skills = {
+	["smallarms"] = 7
+}
 RECIPE.results = {
 	["ammo_rare_127mm_small"] = 1
 }

@@ -7,7 +7,7 @@ RECIPE.requirements = {
 	["craft_uncom_lead"] = 1
 }
 RECIPE.skills = {
-	["automaticweapons"] = 1
+	["automaticweapons"] = 2
 }
 RECIPE.results = {
 	["ammo_com_556_small"] = 1

@@ -5,6 +5,9 @@ RECIPE.category = "Compact Ammo"
 RECIPE.requirements = {
 	["ammo_uncom_10mm_small"] = 6
 }
+RECIPE.skills = {
+	["smallarms"] = 4
+}
 RECIPE.results = {
 	["ammo_uncom_10mm_large"] = 1
 }
