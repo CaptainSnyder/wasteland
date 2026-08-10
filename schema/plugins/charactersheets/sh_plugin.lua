@@ -1531,13 +1531,40 @@ if (SERVER) then
     -- than through SetColor here. entity alpha leaves eyes and teeth fully opaque - they're drawn by
     -- their own shaders, which ignore it - so a faded player kept a solid black mouth floating in
     -- mid-air. render.SetBlend covers the whole model uniformly and doesn't have that problem
+    -- eyes and teeth survive both entity alpha and render.SetBlend, because they're drawn by dedicated
+    -- shaders that ignore blending entirely - which is what left a solid black mouth hanging in the air
+    -- over a faded player. they can't be faded, so while hidden they're swapped for a material that
+    -- draws nothing at all, and swapped back the moment the player is fully visible again
+    local SNEAK_BLANK_MATERIAL = "engine/occlusionproxy"
+
+    local function SetSneakFaceHidden(client, hidden)
+        if (client.ixSneakFaceHidden == hidden) then
+            return
+        end
+
+        client.ixSneakFaceHidden = hidden
+
+        -- GetMaterials is 1-based, SetSubMaterial is 0-based
+        for index, path in ipairs(client:GetMaterials() or {}) do
+            local name = string.lower(path)
+
+            if (name:find("eye") or name:find("teeth") or name:find("mouth")) then
+                client:SetSubMaterial(index - 1, hidden and SNEAK_BLANK_MATERIAL or nil)
+            end
+        end
+    end
+
     local function ApplySneakAlpha(client, alpha)
         client.ixSneakAlpha = alpha
         client:SetNWInt("ixSneakAlpha", math.Round(alpha))
 
+        local visible = alpha >= SNEAK_VISIBLE_ALPHA
+
+        SetSneakFaceHidden(client, !visible)
+
         -- shadows are still ours to drop, and go the moment any fading starts: a full-strength shadow
         -- under a half-faded player gives the whole thing away
-        client:DrawShadow(alpha >= SNEAK_VISIBLE_ALPHA)
+        client:DrawShadow(visible)
     end
 
     -- sets where the fade is heading. the fade timer walks them there over SNEAK_FADE_TIME rather
@@ -1553,6 +1580,7 @@ if (SERVER) then
         client.ixSneakAlpha = nil
 
         client:SetNWInt("ixSneakAlpha", SNEAK_VISIBLE_ALPHA)
+        SetSneakFaceHidden(client, false)
         client:DrawShadow(true)
     end
 
@@ -1652,6 +1680,13 @@ if (SERVER) then
     hook.Add("EntityFireBullets", "ixSneakyShitBreakOnFire", function(ent)
         if (IsValid(ent) and ent:IsPlayer() and ent:GetNWBool("ixSneaking", false)) then
             StopSneaking(ent, "You break cover to fire.")
+        end
+    end)
+
+    -- sprint is the opposite of creeping about, and gives a way out that doesn't need the chat box
+    hook.Add("KeyPress", "ixSneakyShitBreakOnSprint", function(client, key)
+        if (key == IN_SPEED and client:GetNWBool("ixSneaking", false)) then
+            StopSneaking(client, "You break into a run and drop your cover.")
         end
     end)
 
