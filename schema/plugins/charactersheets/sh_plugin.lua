@@ -1427,6 +1427,30 @@ ix.command.Add("SneakyShit", {
     end
 })
 
+if (CLIENT) then
+    -- stealth is drawn here rather than through entity alpha on the server. eyes and teeth are drawn
+    -- by their own shaders and ignore entity alpha entirely, which left a solid black mouth hanging in
+    -- the air over an otherwise faded player. render.SetBlend applies to the whole model, submaterials
+    -- included, so everything fades together
+    local SNEAK_FULL_ALPHA = 255
+
+    hook.Add("PrePlayerDraw", "ixSneakyShitBlend", function(client)
+        local alpha = client:GetNWInt("ixSneakAlpha", SNEAK_FULL_ALPHA)
+
+        if (alpha < SNEAK_FULL_ALPHA) then
+            render.SetBlend(alpha / SNEAK_FULL_ALPHA)
+        end
+    end)
+
+    -- always restored, even for players who were never faded: leaving a blend set here would tint
+    -- whatever the engine happens to draw next
+    hook.Add("PostPlayerDraw", "ixSneakyShitBlend", function(client)
+        if (client:GetNWInt("ixSneakAlpha", SNEAK_FULL_ALPHA) < SNEAK_FULL_ALPHA) then
+            render.SetBlend(1)
+        end
+    end)
+end
+
 -- forced every tick, on both realms, so the local player's own prediction ducks in lockstep with what
 -- the server is doing instead of fighting it and rubber-banding
 hook.Add("SetupMove", "ixSneakyShitForceCrouch", function(client, mv)
@@ -1503,20 +1527,17 @@ if (SERVER) then
     local SNEAK_FADE_INTERVAL = 0.05
     local SNEAK_FADE_STEP = (SNEAK_VISIBLE_ALPHA - SNEAK_HIDDEN_ALPHA) / (SNEAK_FADE_TIME / SNEAK_FADE_INTERVAL)
 
+    -- the alpha is networked and the actual fading happens clientside in PrePlayerDraw below, rather
+    -- than through SetColor here. entity alpha leaves eyes and teeth fully opaque - they're drawn by
+    -- their own shaders, which ignore it - so a faded player kept a solid black mouth floating in
+    -- mid-air. render.SetBlend covers the whole model uniformly and doesn't have that problem
     local function ApplySneakAlpha(client, alpha)
         client.ixSneakAlpha = alpha
+        client:SetNWInt("ixSneakAlpha", math.Round(alpha))
 
-        if (alpha >= SNEAK_VISIBLE_ALPHA) then
-            client:SetRenderMode(RENDERMODE_NORMAL)
-            client:SetColor(color_white)
-            client:DrawShadow(true)
-        else
-            client:SetRenderMode(RENDERMODE_TRANSALPHA)
-            client:SetColor(ColorAlpha(color_white, math.Round(alpha)))
-            -- dropped the moment any fading starts: a full-strength shadow under a half-faded player
-            -- gives the whole thing away
-            client:DrawShadow(false)
-        end
+        -- shadows are still ours to drop, and go the moment any fading starts: a full-strength shadow
+        -- under a half-faded player gives the whole thing away
+        client:DrawShadow(alpha >= SNEAK_VISIBLE_ALPHA)
     end
 
     -- sets where the fade is heading. the fade timer walks them there over SNEAK_FADE_TIME rather
@@ -1531,8 +1552,7 @@ if (SERVER) then
         client.ixSneakTargetAlpha = nil
         client.ixSneakAlpha = nil
 
-        client:SetRenderMode(RENDERMODE_NORMAL)
-        client:SetColor(color_white)
+        client:SetNWInt("ixSneakAlpha", SNEAK_VISIBLE_ALPHA)
         client:DrawShadow(true)
     end
 
