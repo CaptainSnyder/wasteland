@@ -126,6 +126,28 @@ function RECIPE:OnCanCraft(client)
 		return false, "@CraftMissingTool", missing
 	end
 
+	-- minimum invested skill, declared as RECIPE.skills = {["smallarms"] = 1}. checked against points
+	-- the character has actually spent, which is the figure the sheet shows before the bracket - not
+	-- the attribute-derived total, so a recipe can't be unlocked by rolling well on stats alone
+	local invested = character:GetData("skills", {})
+	local missingSkills = ""
+
+	for skillID, level in pairs(self.skills or {}) do
+		if ((invested[skillID] or 0) < level) then
+			-- FindSkillByID is a global from the charactersheets plugin; fall back to the raw id if
+			-- that plugin ever isn't loaded, rather than erroring inside a tooltip
+			local skillData = FindSkillByID and FindSkillByID(skillID)
+
+			missingSkills = missingSkills .. string.format(
+				"%s %d, ", skillData and skillData.name or skillID, level
+			)
+		end
+	end
+
+	if (missingSkills != "") then
+		return false, "@CraftMissingSkill", missingSkills:sub(1, -3)
+	end
+
 	if (self.postHooks and self.postHooks["OnCanCraft"]) then
 		local a, b, c, d, e, f = self.postHooks["OnCanCraft"](self, client)
 

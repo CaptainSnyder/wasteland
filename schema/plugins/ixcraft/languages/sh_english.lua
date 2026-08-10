@@ -3,6 +3,8 @@ LANGUAGE = {
 	["CraftMissingFlag"] = "You are missing the %s flag.",
 	["CraftMissingTool"] = "You are missing a %s.",
 	["CraftMissingItem"] = "You are missing: %s.",
+	["CraftMissingSkill"] = "You need: %s.",
+	["CraftSkills"] = "SKILL REQUIRED",
 	["CraftSuccess"] = "You have successfully crafted %s.",
 
 	["CraftTools"] = "TOOLS",

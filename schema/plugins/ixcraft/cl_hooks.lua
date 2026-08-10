@@ -57,6 +57,31 @@ function PLUGIN:PopulateRecipeTooltip(tooltip, recipe)
 		end
 	end
 
+	-- listed above the material requirements: a skill you haven't trained is a longer-term problem
+	-- than a component you haven't picked up, so it's the first thing worth seeing
+	if (recipe.skills and !table.IsEmpty(recipe.skills)) then
+		local skills = tooltip:AddRow("skills")
+		skills:SetText(L("CraftSkills"))
+		skills:SetBackgroundColor(Color(150, 100, 25))
+		skills:SizeToContents()
+
+		local skillString = ""
+
+		for skillID, level in pairs(recipe.skills) do
+			local skillData = FindSkillByID and FindSkillByID(skillID)
+
+			skillString = skillString .. string.format(
+				"%s %d, ", skillData and skillData.name or skillID, level
+			)
+		end
+
+		if (skillString != "") then
+			local skillList = tooltip:AddRow("skillList")
+			skillList:SetText("- " .. skillString:sub(1, -3))
+			skillList:SizeToContents()
+		end
+	end
+
 	local requirements = tooltip:AddRow("requirements")
 	requirements:SetText(L("CraftRequirements"))
 	requirements:SetBackgroundColor(Color(25,150,150))
