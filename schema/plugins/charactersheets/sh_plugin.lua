@@ -2303,7 +2303,7 @@ local DEMORALIZE_FAIL_COOLDOWN = 30
 local DEMORALIZE_SUCCESS_THRESHOLD = 10
 
 ix.command.Add("Demoralize", {
-    description = "Tears into whoever you're looking at, penalising all their rolls for 5 minutes. Once an hour.",
+    description = "Tears into whoever you're looking at, penalising all their rolls for 5 minutes. Once an hour per person.",
     OnRun = function(self, client)
         local character = client:GetCharacter()
 
@@ -2312,15 +2312,6 @@ ix.command.Add("Demoralize", {
         end
 
         local now = os.time()
-        local readyAt = character:GetData("demoralizeCooldownUntil", 0)
-
-        if (now < readyAt) then
-            client:Notify(string.format(
-                "You've nothing left to throw at anyone for another %s.", FormatWaitTime(readyAt - now)
-            ))
-
-            return
-        end
 
         -- a longer reach than the medical trace: this is shouted at someone, not done to them
         local eyePos = client:GetShootPos()
@@ -2345,6 +2336,28 @@ ix.command.Add("Demoralize", {
             return
         end
 
+        -- the cooldown is per victim, not per demoraliser, so working a whole room one by one is fine
+        -- while going back for seconds on the same person isn't. keyed by character id and stored as
+        -- character data so it survives a disconnect the way the other cooldowns do
+        local cooldowns = character:GetData("demoralizeCooldowns", {})
+        local targetKey = tostring(targetCharacter:GetID())
+
+        -- expired entries are dropped on the way past, so the table can't grow forever
+        for key, expiry in pairs(cooldowns) do
+            if (expiry <= now) then
+                cooldowns[key] = nil
+            end
+        end
+
+        if ((cooldowns[targetKey] or 0) > now) then
+            client:Notify(string.format(
+                "%s has heard it all from you already. Try again in %s.",
+                target:Name(), FormatWaitTime(cooldowns[targetKey] - now)
+            ))
+
+            return
+        end
+
         local result = PerformSkillCheck(client, "hardass")
 
         if (!result) then
@@ -2352,7 +2365,8 @@ ix.command.Add("Demoralize", {
         end
 
         if (result < DEMORALIZE_SUCCESS_THRESHOLD) then
-            character:SetData("demoralizeCooldownUntil", now + DEMORALIZE_FAIL_COOLDOWN)
+            cooldowns[targetKey] = now + DEMORALIZE_FAIL_COOLDOWN
+            character:SetData("demoralizeCooldowns", cooldowns)
             client:Notify("It comes out flat, and they barely register it.")
 
             return
@@ -2372,7 +2386,8 @@ ix.command.Add("Demoralize", {
             effectText = string.format("-%d to all rolls", amount)
         })
 
-        character:SetData("demoralizeCooldownUntil", now + DEMORALIZE_COOLDOWN)
+        cooldowns[targetKey] = now + DEMORALIZE_COOLDOWN
+        character:SetData("demoralizeCooldowns", cooldowns)
 
         client:Notify(string.format("You tear into %s. (-%d to their rolls for 5 minutes)", target:Name(), amount))
         target:Notify(string.format("%s gets under your skin. (-%d to your rolls for 5 minutes)", client:Name(), amount))
@@ -2532,6 +2547,10 @@ ix.command.Add("CharClearCooldowns", {
         }) do
             target:SetData(key, 0)
         end
+
+        -- demoralise keeps a table of per-victim expiries rather than a single timestamp, so it needs
+        -- emptying rather than zeroing
+        target:SetData("demoralizeCooldowns", {})
 
         -- the readouts that mirror those timers, or the sheet would still claim a lockout was running
         RemoveCharacterCondition(target, "recentlytreated")
