@@ -300,6 +300,137 @@ PLUGIN.conditions = {
         -- rolled percentage - hidden from the reference list since the effect varies every time
         hideFromList = true
     },
+    -- injectables from items/drugs/. all of them count as having your fix, so any of them holds
+    -- Withdrawal off for as long as they last - see the Drug Addict trait
+    {
+        id = "cortivex",
+        name = "Cortivex",
+        description = "Muscle fibre screaming somewhere below conscious thought. Your hands won't sit still.",
+        durationHours = 1,
+        category = "other",
+        regionScope = "general",
+        suppressesWithdrawal = true,
+        modifiers = {
+            {type = "attribute", target = "strength", amount = 2},
+            {type = "attribute", target = "coordination", amount = -1}
+        }
+    },
+    {
+        id = "adrenacine",
+        name = "Adrenacine",
+        description = "Everything is happening slightly faster than it should, including you.",
+        durationHours = 0.75,
+        category = "other",
+        regionScope = "general",
+        suppressesWithdrawal = true,
+        modifiers = {
+            {type = "attribute", target = "speed", amount = 2},
+            {type = "attribute", target = "awareness", amount = -1}
+        }
+    },
+    {
+        id = "ocuvex",
+        name = "Ocuvex",
+        description = "The edges of things have gone very sharp. You keep noticing the wrong details.",
+        durationHours = 1,
+        category = "other",
+        regionScope = "general",
+        suppressesWithdrawal = true,
+        modifiers = {
+            {type = "attribute", target = "awareness", amount = 2},
+            {type = "attribute", target = "strength", amount = -1}
+        }
+    },
+    {
+        id = "grit",
+        name = "Grit",
+        description = "Nothing hurts and nothing is funny. You would like someone to try something.",
+        durationHours = 0.5,
+        category = "other",
+        regionScope = "general",
+        suppressesWithdrawal = true,
+        modifiers = {},
+        advantageSkills = {"brawling", "melee"},
+        disadvantageSkills = {"deception", "kissass"}
+    },
+    {
+        id = "ratchet",
+        name = "Ratchet",
+        description = "Your whole world has narrowed to whatever is directly under your hands.",
+        durationHours = 1,
+        category = "other",
+        regionScope = "general",
+        suppressesWithdrawal = true,
+        modifiers = {
+            {type = "skill", target = "repair", amount = 2},
+            {type = "skill", target = "lockpicking", amount = 2},
+            {type = "attribute", target = "strength", amount = -1}
+        }
+    },
+    {
+        id = "neurazine",
+        name = "Neurazine",
+        description = "Thoughts arriving faster than you can be polite about them.",
+        durationHours = 1,
+        category = "other",
+        regionScope = "general",
+        suppressesWithdrawal = true,
+        modifiers = {
+            {type = "attribute", target = "intelligence", amount = 3},
+            {type = "attribute", target = "charisma", amount = -2}
+        }
+    },
+    {
+        id = "somnitol",
+        name = "Somnitol",
+        description = "Warm, unhurried, and entirely convinced that everyone here is a friend.",
+        durationHours = 1,
+        category = "other",
+        regionScope = "general",
+        suppressesWithdrawal = true,
+        modifiers = {
+            {type = "attribute", target = "charisma", amount = 3},
+            {type = "attribute", target = "awareness", amount = -2}
+        }
+    },
+    {
+        id = "static",
+        name = "Static",
+        description = "You can hear the cells humming. It is not unpleasant, exactly.",
+        durationHours = 0.75,
+        category = "other",
+        regionScope = "general",
+        suppressesWithdrawal = true,
+        modifiers = {
+            {type = "skill", target = "energyweapons", amount = 3},
+            {type = "skill", target = "nerdstuff", amount = 2},
+            {type = "attribute", target = "coordination", amount = -2}
+        }
+    },
+    {
+        id = "longshot",
+        name = "Longshot",
+        description = "Your pulse has gone somewhere you can't feel it. Distance means nothing.",
+        durationHours = 0.75,
+        category = "other",
+        regionScope = "general",
+        suppressesWithdrawal = true,
+        modifiers = {},
+        advantageSkills = {"snipers", "vigilance"},
+        disadvantageSkills = {"brawling", "athletics"}
+    },
+    {
+        id = "nova",
+        name = "Nova",
+        description = "Everything at once, all of it yours, and none of it lasting.",
+        durationHours = 1 / 3,
+        category = "other",
+        regionScope = "general",
+        suppressesWithdrawal = true,
+        modifiers = {
+            {type = "allAttributes", amount = 2}
+        }
+    },
     {
         id = "demoralized",
         name = "Demoralized",
