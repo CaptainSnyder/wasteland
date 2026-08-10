@@ -990,10 +990,26 @@ function PerformSkillCheck(client, skillID, modifier, forceMode, extraAdvantage,
         segments[#segments + 1] = {color = red, text = " (Critical Failure!)"}
     end
 
-    ix.chat.Send(client, "attribroll", "", nil, receivers, {diceSegments = segments})
+    -- receivers == false suppresses the chat line entirely and hands the segments back for the caller
+    -- to announce itself. the stealth contest needs that: who should see the rolls depends on who won,
+    -- and neither result exists until both dice are already thrown
+    if (receivers != false) then
+        ix.chat.Send(client, "attribroll", "", nil, receivers, {diceSegments = segments})
+    end
+
     ix.log.Add(client, "roll", result, 20 + flatBonus)
 
-    return result, diceRoll, skillData
+    return result, diceRoll, skillData, segments
+end
+
+-- posts a roll that PerformSkillCheck was told to hold back. same chat class, so a deferred roll is
+-- indistinguishable from an immediate one once it lands
+function AnnounceSkillRoll(client, segments, receivers)
+    if (!IsValid(client) or !segments) then
+        return
+    end
+
+    ix.chat.Send(client, "attribroll", "", nil, receivers, {diceSegments = segments})
 end
 
 -- see the note on /RollAttribute: the mode has to follow a modifier, so the sheet always sends both
@@ -1616,15 +1632,31 @@ if (SERVER) then
 
         observer.ixSneakSpotAttempts[sneaker] = now
 
-        -- both rolls are sent to the sneaker and to nobody else. they're the one with a decision to
-        -- make off the back of it - knowing someone nearly had you is the whole tension of hiding -
-        -- while the observer only ever learns whether they found anything
-        local receivers = {sneaker}
-        local notice = PerformSkillCheck(observer, "vigilance", 0, nil, nil, receivers)
-        local hide = PerformSkillCheck(sneaker, "sneakyshit", 0, nil, nil, receivers)
+        -- held back rather than announced as they're rolled, because who gets to see them depends on
+        -- the outcome and neither number exists until both are thrown
+        local notice, _, _, noticeSegments = PerformSkillCheck(observer, "vigilance", 0, nil, nil, false)
+        local hide, _, _, hideSegments = PerformSkillCheck(sneaker, "sneakyshit", 0, nil, nil, false)
+
+        if (!notice or !hide) then
+            return
+        end
 
         -- ties go to the sneaker, matching how the pickpocket contest resolves
-        if (notice and hide and notice > hide) then
+        local spotted = notice > hide
+
+        -- the sneaker always sees the exchange - knowing someone nearly had you is the whole tension
+        -- of hiding. the observer only sees it when they win, so a failed search tells them nothing
+        -- about what they were up against, or even that there was anything to be up against
+        local receivers = {sneaker}
+
+        if (spotted) then
+            receivers[#receivers + 1] = observer
+        end
+
+        AnnounceSkillRoll(observer, noticeSegments, receivers)
+        AnnounceSkillRoll(sneaker, hideSegments, receivers)
+
+        if (spotted) then
             MarkSpotted(observer, sneaker)
             observer:Notify("Something moves at the edge of your vision. There's someone there.")
         end
