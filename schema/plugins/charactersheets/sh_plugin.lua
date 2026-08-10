@@ -1535,6 +1535,8 @@ if (SERVER) then
     -- a look check beats radius entirely, so it needs to reach across pretty much the whole map
     local SNEAK_LOOK_DISTANCE = 8192
     local SNEAK_CHECK_INTERVAL = 0.15
+    -- long enough that opening the Steam overlay with Shift+Tab can't cost someone their cover
+    local SNEAK_SPRINT_BREAK_TIME = 1.5
     local SNEAK_BASE_SPEED_PENALTY = 0.5
     local SNEAK_MIN_SPEED_PENALTY = 0.1
 
@@ -1736,6 +1738,8 @@ if (SERVER) then
 
         client:SetNWBool("ixSneaking", false)
         client.ixSneakRadius = nil
+        -- cleared so a fresh sneak doesn't inherit a sprint already part-way through counting down
+        client.ixSneakSprintSince = nil
         -- cleared before the reset, so ResetMovementSpeed restores full speed rather than the
         -- slowed baseline it would use for someone still sneaking
         client.ixSneakSpeedMultiplier = nil
@@ -1783,6 +1787,21 @@ if (SERVER) then
     timer.Create("ixSneakyShitTick", SNEAK_CHECK_INTERVAL, 0, function()
         for _, client in ipairs(player.GetAll()) do
             if (IsValid(client) and client:Alive() and client:GetNWBool("ixSneaking", false) and client.ixSneakRadius) then
+                -- sprint has to be held down, not tapped. Steam's overlay is Shift+Tab, and dropping
+                -- someone's cover because they alt-tabbed would be miserable. read from KeyDown each
+                -- tick rather than off a KeyPress hook, so a release that never fires can't leave a
+                -- stale timestamp counting up in the background
+                if (client:KeyDown(IN_SPEED)) then
+                    client.ixSneakSprintSince = client.ixSneakSprintSince or CurTime()
+
+                    if (CurTime() - client.ixSneakSprintSince >= SNEAK_SPRINT_BREAK_TIME) then
+                        StopSneaking(client, "You break into a run and drop your cover.")
+                        continue
+                    end
+                else
+                    client.ixSneakSprintSince = nil
+                end
+
                 for _, observer in ipairs(player.GetAll()) do
                     if (observer != client and IsValid(observer) and observer:Alive() and observer:GetCharacter()) then
                         UpdateSpotter(observer, client, client.ixSneakRadius)
@@ -1809,13 +1828,6 @@ if (SERVER) then
     hook.Add("EntityFireBullets", "ixSneakyShitBreakOnFire", function(ent)
         if (IsValid(ent) and ent:IsPlayer() and ent:GetNWBool("ixSneaking", false)) then
             StopSneaking(ent, "You break cover to fire.")
-        end
-    end)
-
-    -- sprint is the opposite of creeping about, and gives a way out that doesn't need the chat box
-    hook.Add("KeyPress", "ixSneakyShitBreakOnSprint", function(client, key)
-        if (key == IN_SPEED and client:GetNWBool("ixSneaking", false)) then
-            StopSneaking(client, "You break into a run and drop your cover.")
         end
     end)
 
