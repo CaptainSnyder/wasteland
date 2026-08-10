@@ -362,6 +362,7 @@ if (SERVER) then
     util.AddNetworkString("ixPickpocketWaiting")
     util.AddNetworkString("ixPickpocketCancel")
     util.AddNetworkString("ixPickpocketDismiss")
+    util.AddNetworkString("ixSneakSpotted")
     util.AddNetworkString("ixCharSheetBuyTrait")
     util.AddNetworkString("ixOpenConditionList")
     util.AddNetworkString("ixOpenHealthConditionList")
@@ -1428,25 +1429,75 @@ ix.command.Add("SneakyShit", {
 })
 
 if (CLIENT) then
-    -- stealth is drawn here rather than through entity alpha on the server. eyes and teeth are drawn
-    -- by their own shaders and ignore entity alpha entirely, which left a solid black mouth hanging in
-    -- the air over an otherwise faded player. render.SetBlend applies to the whole model, submaterials
-    -- included, so everything fades together
+    -- stealth is drawn here rather than through entity alpha on the server, because eyes and teeth are
+    -- drawn by their own shaders that ignore entity alpha entirely.
+    --
+    -- it also has to be clientside for a second reason: whether a sneaker is hidden is now a different
+    -- answer for every viewer. the networked alpha says how faded they are *to someone who hasn't
+    -- spotted them*; the spotted table below is per-client, and anyone who has made their check sees
+    -- them at full strength while everyone else still doesn't
     local SNEAK_FULL_ALPHA = 255
+    local SNEAK_BLANK_MATERIAL = "engine/occlusionproxy"
 
-    hook.Add("PrePlayerDraw", "ixSneakyShitBlend", function(client)
-        local alpha = client:GetNWInt("ixSneakAlpha", SNEAK_FULL_ALPHA)
+    -- [player] = true for sneakers this client specifically has spotted
+    local spottedSneakers = {}
+    -- [player] = true where this client currently has their face materials blanked
+    local blankedFaces = {}
+    local blendApplied = false
 
-        if (alpha < SNEAK_FULL_ALPHA) then
-            render.SetBlend(alpha / SNEAK_FULL_ALPHA)
+    net.Receive("ixSneakSpotted", function()
+        local ply = net.ReadEntity()
+        local spotted = net.ReadBool()
+
+        if (IsValid(ply)) then
+            spottedSneakers[ply] = spotted or nil
         end
     end)
 
-    -- always restored, even for players who were never faded: leaving a blend set here would tint
-    -- whatever the engine happens to draw next
+    local function IsHiddenToUs(ply)
+        return ply:GetNWInt("ixSneakAlpha", SNEAK_FULL_ALPHA) < SNEAK_FULL_ALPHA
+            and !spottedSneakers[ply]
+    end
+
+    hook.Add("PrePlayerDraw", "ixSneakyShitBlend", function(client)
+        blendApplied = false
+
+        if (IsHiddenToUs(client)) then
+            blendApplied = true
+            render.SetBlend(client:GetNWInt("ixSneakAlpha", SNEAK_FULL_ALPHA) / SNEAK_FULL_ALPHA)
+        end
+    end)
+
+    -- tracked with a flag rather than re-testing, so a player spotted mid-draw can't leave the blend
+    -- set and tint whatever the engine draws next
     hook.Add("PostPlayerDraw", "ixSneakyShitBlend", function(client)
-        if (client:GetNWInt("ixSneakAlpha", SNEAK_FULL_ALPHA) < SNEAK_FULL_ALPHA) then
+        if (blendApplied) then
+            blendApplied = false
             render.SetBlend(1)
+        end
+    end)
+
+    -- SetSubMaterial called clientside only affects this client's view, which is exactly what's needed
+    -- now that two people can legitimately be seeing the same player differently. done on transitions
+    -- rather than per frame, since swapping materials every tick would be wasteful
+    timer.Create("ixSneakyShitFaceTick", 0.1, 0, function()
+        for _, ply in ipairs(player.GetAll()) do
+            if (IsValid(ply)) then
+                local hide = IsHiddenToUs(ply)
+
+                if ((blankedFaces[ply] or false) != hide) then
+                    blankedFaces[ply] = hide or nil
+
+                    -- GetMaterials is 1-based, SetSubMaterial is 0-based
+                    for index, path in ipairs(ply:GetMaterials() or {}) do
+                        local name = string.lower(path)
+
+                        if (name:find("eye") or name:find("teeth") or name:find("mouth")) then
+                            ply:SetSubMaterial(index - 1, hide and SNEAK_BLANK_MATERIAL or nil)
+                        end
+                    end
+                end
+            end
         end
     end)
 end
@@ -1491,30 +1542,115 @@ if (SERVER) then
     -- true the moment anyone else could plausibly have made them: either someone's within their
     -- shrunk-by-skill radius, or someone's crosshair is landing directly on them from anywhere at all -
     -- a stare across an open field gives you away no matter how far off it is
-    local function IsSneakSpotted(client, radius)
-        local origin = client:GetPos()
+    -- how long before an observer who failed to notice this sneaker may try again. tracked per
+    -- observer-and-sneaker pair, so walking past three hidden people rolls against each of them
+    local SNEAK_SPOT_COOLDOWN = 180
 
-        for _, ply in ipairs(player.GetAll()) do
-            if (ply != client and IsValid(ply) and ply:Alive() and ply:GetCharacter()) then
-                if (origin:Distance(ply:GetPos()) <= radius) then
-                    return true
-                end
+    -- rolled without announcing: this fires automatically whenever anyone walks past anyone, and
+    -- putting two roll lines in chat every time would bury the rolls players actually made themselves.
+    -- advantage and disadvantage from traits and conditions still apply
+    local function RollSkillSilently(client, skillID)
+        local character = client:GetCharacter()
 
-                local eyePos = ply:GetShootPos()
-                local trace = util.TraceLine({
-                    start = eyePos,
-                    endpos = eyePos + ply:GetAimVector() * SNEAK_LOOK_DISTANCE,
-                    filter = ply,
-                    mask = MASK_SHOT
-                })
-
-                if (trace.Entity == client) then
-                    return true
-                end
-            end
+        if (!character) then
+            return
         end
 
-        return false
+        local skillData = FindSkillByID(skillID)
+
+        if (!skillData) then
+            return
+        end
+
+        local rollMode = GetSkillRollMode(character, skillData)
+        local diceRoll
+
+        if (rollMode == "advantage") then
+            diceRoll = math.max(math.random(1, 20), math.random(1, 20))
+        elseif (rollMode == "disadvantage") then
+            diceRoll = math.min(math.random(1, 20), math.random(1, 20))
+        else
+            diceRoll = math.random(1, 20)
+        end
+
+        return diceRoll + GetSkillFlatBonus(character, skillData)
+    end
+
+    local function SendSpotted(observer, sneaker, spotted)
+        net.Start("ixSneakSpotted")
+            net.WriteEntity(sneaker)
+            net.WriteBool(spotted)
+        net.Send(observer)
+    end
+
+    -- clears everyone's record of having spotted this player, so a fresh sneak starts fresh rather
+    -- than inheriting who found them last time
+    local function ResetSpotters(sneaker)
+        sneaker.ixSneakSpottedBy = {}
+
+        net.Start("ixSneakSpotted")
+            net.WriteEntity(sneaker)
+            net.WriteBool(false)
+        net.Broadcast()
+    end
+
+    local function MarkSpotted(observer, sneaker)
+        sneaker.ixSneakSpottedBy = sneaker.ixSneakSpottedBy or {}
+
+        if (sneaker.ixSneakSpottedBy[observer]) then
+            return
+        end
+
+        sneaker.ixSneakSpottedBy[observer] = true
+        SendSpotted(observer, sneaker, true)
+    end
+
+    -- one observer's chance at one sneaker. a direct look reveals outright; proximity only earns a
+    -- contested roll, and only once every few minutes per pair so it can't be farmed by pacing back
+    -- and forth at the edge of their radius
+    local function UpdateSpotter(observer, sneaker, radius)
+        if (sneaker.ixSneakSpottedBy and sneaker.ixSneakSpottedBy[observer]) then
+            return
+        end
+
+        local eyePos = observer:GetShootPos()
+        local trace = util.TraceLine({
+            start = eyePos,
+            endpos = eyePos + observer:GetAimVector() * SNEAK_LOOK_DISTANCE,
+            filter = observer,
+            mask = MASK_SHOT
+        })
+
+        if (trace.Entity == sneaker) then
+            MarkSpotted(observer, sneaker)
+            observer:Notify("You catch sight of someone trying not to be seen.")
+
+            return
+        end
+
+        if (observer:GetPos():Distance(sneaker:GetPos()) > radius) then
+            return
+        end
+
+        observer.ixSneakSpotAttempts = observer.ixSneakSpotAttempts or {}
+
+        local now = os.time()
+        local lastAttempt = observer.ixSneakSpotAttempts[sneaker] or 0
+
+        if (now - lastAttempt < SNEAK_SPOT_COOLDOWN) then
+            return
+        end
+
+        observer.ixSneakSpotAttempts[sneaker] = now
+
+        local notice = RollSkillSilently(observer, "vigilance")
+        local hide = RollSkillSilently(sneaker, "sneakyshit")
+
+        -- ties go to the sneaker, matching how the pickpocket contest resolves
+        if (notice and hide and notice > hide) then
+            MarkSpotted(observer, sneaker)
+            observer:Notify("Something moves at the edge of your vision. There's someone there.")
+        end
     end
 
     -- never fully invisible: this leaves roughly 5% opacity, enough that someone actively scanning can
@@ -1531,46 +1667,24 @@ if (SERVER) then
     -- than through SetColor here. entity alpha leaves eyes and teeth fully opaque - they're drawn by
     -- their own shaders, which ignore it - so a faded player kept a solid black mouth floating in
     -- mid-air. render.SetBlend covers the whole model uniformly and doesn't have that problem
-    -- eyes and teeth survive both entity alpha and render.SetBlend, because they're drawn by dedicated
-    -- shaders that ignore blending entirely - which is what left a solid black mouth hanging in the air
-    -- over a faded player. they can't be faded, so while hidden they're swapped for a material that
-    -- draws nothing at all, and swapped back the moment the player is fully visible again
-    local SNEAK_BLANK_MATERIAL = "engine/occlusionproxy"
-
-    local function SetSneakFaceHidden(client, hidden)
-        if (client.ixSneakFaceHidden == hidden) then
-            return
-        end
-
-        client.ixSneakFaceHidden = hidden
-
-        -- GetMaterials is 1-based, SetSubMaterial is 0-based
-        for index, path in ipairs(client:GetMaterials() or {}) do
-            local name = string.lower(path)
-
-            if (name:find("eye") or name:find("teeth") or name:find("mouth")) then
-                client:SetSubMaterial(index - 1, hidden and SNEAK_BLANK_MATERIAL or nil)
-            end
-        end
-    end
-
+    -- the face material swap lives on the client now: two viewers can legitimately disagree about
+    -- whether this player is hidden, and SetSubMaterial called serverside would force one answer on
+    -- everybody. see the CLIENT block near the top of the sneak code
     local function ApplySneakAlpha(client, alpha)
         client.ixSneakAlpha = alpha
         client:SetNWInt("ixSneakAlpha", math.Round(alpha))
 
-        local visible = alpha >= SNEAK_VISIBLE_ALPHA
-
-        SetSneakFaceHidden(client, !visible)
-
         -- shadows are still ours to drop, and go the moment any fading starts: a full-strength shadow
-        -- under a half-faded player gives the whole thing away
-        client:DrawShadow(visible)
+        -- under a half-faded player gives the whole thing away. this one is unavoidably global, so a
+        -- spotted player casts no shadow for the person who spotted them either
+        client:DrawShadow(alpha >= SNEAK_VISIBLE_ALPHA)
     end
 
-    -- sets where the fade is heading. the fade timer walks them there over SNEAK_FADE_TIME rather
-    -- than snapping, so stepping in and out of someone's range reads as blending rather than blinking
-    local function SetSneakSpotted(client, spotted)
-        client.ixSneakTargetAlpha = spotted and SNEAK_VISIBLE_ALPHA or SNEAK_HIDDEN_ALPHA
+    -- the networked alpha is now simply "how faded you are to anyone who hasn't spotted you", so it
+    -- heads for hidden the moment stealth starts and stays there. who can actually see through it is
+    -- decided per observer by UpdateSpotter and rendered per client
+    local function BeginSneakFade(client)
+        client.ixSneakTargetAlpha = SNEAK_HIDDEN_ALPHA
     end
 
     -- breaking cover is immediate in both directions - you don't get to fade back in gently after
@@ -1580,8 +1694,8 @@ if (SERVER) then
         client.ixSneakAlpha = nil
 
         client:SetNWInt("ixSneakAlpha", SNEAK_VISIBLE_ALPHA)
-        SetSneakFaceHidden(client, false)
         client:DrawShadow(true)
+        ResetSpotters(client)
     end
 
     timer.Create("ixSneakyShitFadeTick", SNEAK_FADE_INTERVAL, 0, function()
@@ -1647,18 +1761,23 @@ if (SERVER) then
             client.ixSneakSpeedMultiplier = GetSneakSpeedMultiplier(level)
             ResetMovementSpeed(client)
 
-            -- the target is set right away rather than waiting for the next spot check, so the fade
-            -- begins the instant the command goes off instead of a beat later
-            SetSneakSpotted(client, IsSneakSpotted(client, client.ixSneakRadius))
+            -- nobody has spotted them yet, whoever saw them last time they sneaked
+            ResetSpotters(client)
+            BeginSneakFade(client)
             client:Notify("You crouch low and go still, blending into your surroundings.")
     end
 
-    -- one tick driving every sneaking player's visibility, same shape as the bleeding/hunger/thirst
-    -- ticks below, rather than a timer per player
+    -- one tick running every observer's chance against every sneaker, rather than a timer per player.
+    -- each pair is rate-limited inside UpdateSpotter, so this only rolls dice occasionally even though
+    -- it runs several times a second
     timer.Create("ixSneakyShitTick", SNEAK_CHECK_INTERVAL, 0, function()
         for _, client in ipairs(player.GetAll()) do
             if (IsValid(client) and client:Alive() and client:GetNWBool("ixSneaking", false) and client.ixSneakRadius) then
-                SetSneakSpotted(client, IsSneakSpotted(client, client.ixSneakRadius))
+                for _, observer in ipairs(player.GetAll()) do
+                    if (observer != client and IsValid(observer) and observer:Alive() and observer:GetCharacter()) then
+                        UpdateSpotter(observer, client, client.ixSneakRadius)
+                    end
+                end
             end
         end
     end)
