@@ -2294,6 +2294,91 @@ if (SERVER) then
     end)
 end
 
+-- the mirror of /rally: one target instead of a crowd, a penalty instead of a bonus. duration and
+-- cooldown match rally deliberately, so the two read as a matched pair
+local DEMORALIZE_RANGE = 1024
+local DEMORALIZE_DURATION = 5 * 60
+local DEMORALIZE_COOLDOWN = 60 * 60
+local DEMORALIZE_FAIL_COOLDOWN = 30
+local DEMORALIZE_SUCCESS_THRESHOLD = 10
+
+ix.command.Add("Demoralize", {
+    description = "Tears into whoever you're looking at, penalising all their rolls for 5 minutes. Once an hour.",
+    OnRun = function(self, client)
+        local character = client:GetCharacter()
+
+        if (!character) then
+            return
+        end
+
+        local now = os.time()
+        local readyAt = character:GetData("demoralizeCooldownUntil", 0)
+
+        if (now < readyAt) then
+            client:Notify(string.format(
+                "You've nothing left to throw at anyone for another %s.", FormatWaitTime(readyAt - now)
+            ))
+
+            return
+        end
+
+        -- a longer reach than the medical trace: this is shouted at someone, not done to them
+        local eyePos = client:GetShootPos()
+        local trace = util.TraceLine({
+            start = eyePos,
+            endpos = eyePos + client:GetAimVector() * DEMORALIZE_RANGE,
+            filter = client,
+            mask = MASK_SHOT
+        })
+
+        local target = trace.Entity
+
+        if (!IsValid(target) or !target:IsPlayer() or target == client) then
+            client:Notify("You aren't looking at anyone.")
+            return
+        end
+
+        local targetCharacter = target:GetCharacter()
+
+        if (!targetCharacter) then
+            client:Notify("They have no character loaded.")
+            return
+        end
+
+        local result = PerformSkillCheck(client, "hardass")
+
+        if (!result) then
+            return
+        end
+
+        if (result < DEMORALIZE_SUCCESS_THRESHOLD) then
+            character:SetData("demoralizeCooldownUntil", now + DEMORALIZE_FAIL_COOLDOWN)
+            client:Notify("It comes out flat, and they barely register it.")
+
+            return
+        end
+
+        -- scaled off invested Hard Ass on the same curve skill levels cost, so the first three points
+        -- are worth 1 and the tenth is worth 6
+        local level = character:GetData("skills", {})["hardass"] or 0
+        local amount = skillLevelCost[math.Clamp(level, 1, 10)] or 1
+
+        -- only allAttributes, deliberately. skill totals derive from the attribute pair, so a flat
+        -- drop there lands as exactly the same penalty on skill rolls - applying allSkills as well
+        -- would charge skills twice for one insult
+        ApplyCharacterCondition(targetCharacter, "demoralized", DEMORALIZE_DURATION / 3600, nil, {
+            {type = "allAttributes", amount = -amount}
+        }, {
+            effectText = string.format("-%d to all rolls", amount)
+        })
+
+        character:SetData("demoralizeCooldownUntil", now + DEMORALIZE_COOLDOWN)
+
+        client:Notify(string.format("You tear into %s. (-%d to their rolls for 5 minutes)", target:Name(), amount))
+        target:Notify(string.format("%s gets under your skin. (-%d to your rolls for 5 minutes)", client:Name(), amount))
+    end
+})
+
 ix.command.Add("CharSetSkill", {
     description = "Sets a character's invested points for a skill (capped at 10).",
     privilege = "Manage Character Skills",

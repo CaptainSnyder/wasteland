@@ -301,6 +301,19 @@ PLUGIN.conditions = {
         hideFromList = true
     },
     {
+        id = "demoralized",
+        name = "Demoralized",
+        description = "Someone got in your head, and it's still rattling around in there.",
+        durationHours = 5 / 60,
+        category = "other",
+        regionScope = "general",
+        modifiers = {},
+        -- deliberately doesn't touch advantage or disadvantage: this is a flat penalty and nothing
+        -- more. the penalty itself is per-use, scaled by the demoraliser's Hard Ass, so there's
+        -- nothing fixed to declare here
+        hideFromList = true
+    },
+    {
         id = "rallied",
         name = "Rallied",
         description = "Someone got through to you. Whatever they said, it's working.",
