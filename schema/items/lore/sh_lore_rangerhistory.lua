@@ -22,7 +22,7 @@ It sat off the highway with walls three feet thick, its own well, and a wire fen
 
 The taking of it is the part that gets sung about, and the songs are mostly wrong. It was not a glorious assault. It was a siege in the heat with too little water, it went on far longer than anyone admits now, and good men died badly on both sides of that wall.
 
-What matters is that when it was over, we did not tear the place down. We moved in.]],
+What matters is that when it was over, we did not tear the place down. We moved in, and we called it Ranger Center, and for a very long time it was the only law between the mountains and the salt.]],
 
 	[[On the Star
 
@@ -36,11 +36,13 @@ Plenty have broken it. That is why we still say it out loud.]],
 
 	[[On the Citadel
 
-The prison is the Citadel. People forget that, and the newer recruits sometimes arrive expecting some grand fortress raised from nothing.
+Recruits arrive expecting the Citadel to be the old prison with a better name. It is not. They are two different places, and the difference cost us.
 
-What they find is a hundred years of patient work laid over a federal penitentiary. Cell blocks turned to barracks. The exercise yard turned to a motor pool, then a drill ground, then a motor pool again. Walls raised, breached, and raised higher. The old solitary wing is the armoury now, and nobody has ever seriously proposed moving it, because there is no better vault in the territory.
+The Center held us for generations, and by the end it was holding us the way a cell holds anyone. Built for the wrong purpose, cramped, crumbling faster than we could patch it, and every year a little less equal to what was coming out of the desert at us.
 
-It stopped being a prison the day we decided to stay in it. Everything since has just been building.
+The Citadel we took. It had been held by men who had spent a century sitting on the last working technology in the territory and calling it stewardship, letting the world outside their walls go to rot rather than share so much as a spare part. When that finally came to a head, it came to a head badly, and it was settled the way things get settled out here.
 
-We hold the desert from a place built to hold people. There is a lesson somewhere in that, and every Ranger works out their own version of it eventually.]]
+We buried our dead, we struck their name off the gate, and we moved in.
+
+It was never a prison. It was built from the start to keep something safe. These days that something is us, and the territory we answer for, and every road between here and the salt.]]
 }
