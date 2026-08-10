@@ -257,6 +257,7 @@ end
 -- applied rather than fixed on the template:
 --   effectText      - /athletics rolls a different speed percentage every time
 --   advantageSkills - /rally grants advantage on whichever skill the leader called
+--   removalDC       - /demoralize records what it rolled, so /reassure knows what it has to beat
 -- both travel with the instance, so two characters can hold the same condition doing different things
 function ApplyCharacterCondition(character, conditionID, durationHoursOverride, region, modifiersOverride, extra)
     local conditionDef = conditionsByID[conditionID]
@@ -307,6 +308,7 @@ function ApplyCharacterCondition(character, conditionID, durationHoursOverride, 
         existing.modifiers = modifiersOverride or existing.modifiers
         existing.effectText = extra.effectText or existing.effectText
         existing.advantageSkills = extra.advantageSkills or existing.advantageSkills
+        existing.removalDC = extra.removalDC or existing.removalDC
     else
         table.insert(conditions, {
             id = tostring(now) .. "_" .. tostring(math.random(1000, 9999)),
@@ -317,6 +319,7 @@ function ApplyCharacterCondition(character, conditionID, durationHoursOverride, 
             modifiers = modifiersOverride or conditionDef.modifiers,
             effectText = extra.effectText,
             advantageSkills = extra.advantageSkills,
+            removalDC = extra.removalDC,
             region = resolvedRegion
         })
     end
@@ -2383,7 +2386,10 @@ ix.command.Add("Demoralize", {
         ApplyCharacterCondition(targetCharacter, "demoralized", DEMORALIZE_DURATION / 3600, nil, {
             {type = "allAttributes", amount = -amount}
         }, {
-            effectText = string.format("-%d to all rolls", amount)
+            -- the roll that landed it becomes the bar /reassure has to clear, so a crushing delivery
+            -- is genuinely harder to talk someone down from than a scraped one
+            removalDC = result,
+            effectText = string.format("-%d to all rolls, DC %d to talk them down", amount, result)
         })
 
         cooldowns[targetKey] = now + DEMORALIZE_COOLDOWN
@@ -2391,6 +2397,103 @@ ix.command.Add("Demoralize", {
 
         client:Notify(string.format("You tear into %s. (-%d to their rolls for 5 minutes)", target:Name(), amount))
         target:Notify(string.format("%s gets under your skin. (-%d to your rolls for 5 minutes)", client:Name(), amount))
+    end
+})
+
+-- the counterpart to /demoralize. no fixed threshold of its own: the bar is whatever the demoraliser
+-- rolled, recorded on the condition when it landed
+local REASSURE_FAIL_COOLDOWN = 60
+
+ix.command.Add("Reassure", {
+    description = "Talks down whoever you're looking at, clearing a Demoralized condition if your Kiss Ass beats the roll that caused it.",
+    OnRun = function(self, client)
+        local character = client:GetCharacter()
+
+        if (!character) then
+            return
+        end
+
+        local eyePos = client:GetShootPos()
+        local trace = util.TraceLine({
+            start = eyePos,
+            endpos = eyePos + client:GetAimVector() * DEMORALIZE_RANGE,
+            filter = client,
+            mask = MASK_SHOT
+        })
+
+        local target = trace.Entity
+
+        -- deliberately can't be aimed at yourself: you don't talk yourself out of it
+        if (!IsValid(target) or !target:IsPlayer() or target == client) then
+            client:Notify("You aren't looking at anyone.")
+            return
+        end
+
+        local targetCharacter = target:GetCharacter()
+
+        if (!targetCharacter) then
+            client:Notify("They have no character loaded.")
+            return
+        end
+
+        local demoralized
+
+        for _, cond in ipairs(GetActiveConditions(targetCharacter)) do
+            if (cond.sourceId == "demoralized") then
+                demoralized = cond
+                break
+            end
+        end
+
+        if (!demoralized) then
+            client:Notify(string.format("%s doesn't need talking down.", target:Name()))
+            return
+        end
+
+        local now = os.time()
+        local cooldowns = character:GetData("reassureCooldowns", {})
+        local targetKey = tostring(targetCharacter:GetID())
+
+        for key, expiry in pairs(cooldowns) do
+            if (expiry <= now) then
+                cooldowns[key] = nil
+            end
+        end
+
+        if ((cooldowns[targetKey] or 0) > now) then
+            client:Notify(string.format(
+                "%s isn't ready to hear it from you again yet.", target:Name()
+            ))
+
+            return
+        end
+
+        local result = PerformSkillCheck(client, "kissass")
+
+        if (!result) then
+            return
+        end
+
+        -- instances from before this existed have no recorded DC, so they're treated as trivially
+        -- talked down rather than impossible
+        local dc = demoralized.removalDC or 0
+
+        if (result < dc) then
+            -- only the failure costs a cooldown, and only against this one person - someone else can
+            -- still step in immediately, which is the point of it being a social skill
+            cooldowns[targetKey] = now + REASSURE_FAIL_COOLDOWN
+            character:SetData("reassureCooldowns", cooldowns)
+
+            client:Notify(string.format("Nothing you say lands. (needed %d)", dc))
+            target:Notify(string.format("%s tries to talk you round. It doesn't help.", client:Name()))
+
+            return
+        end
+
+        RemoveCharacterCondition(targetCharacter, "demoralized")
+
+        client:Notify(string.format("You talk %s back round.", target:Name()))
+        target:Notify(string.format("%s talks you back round. You shake it off.", client:Name()))
     end
 })
 
@@ -2548,9 +2651,10 @@ ix.command.Add("CharClearCooldowns", {
             target:SetData(key, 0)
         end
 
-        -- demoralise keeps a table of per-victim expiries rather than a single timestamp, so it needs
+        -- these two keep tables of per-victim expiries rather than a single timestamp, so they need
         -- emptying rather than zeroing
         target:SetData("demoralizeCooldowns", {})
+        target:SetData("reassureCooldowns", {})
 
         -- the readouts that mirror those timers, or the sheet would still claim a lockout was running
         RemoveCharacterCondition(target, "recentlytreated")
