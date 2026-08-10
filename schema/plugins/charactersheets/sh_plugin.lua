@@ -39,7 +39,11 @@ PLUGIN.maxTraitPoints = MAX_TRAIT_POINTS
 local TRAIT_SOURCE_LABELS = {
     origin = "Origin Trait",
     purchased = "Purchased Trait",
-    rewarded = "Rewarded Trait"
+    rewarded = "Rewarded Trait",
+    -- picked up through play rather than chosen or granted - a drug habit that took hold on its own.
+    -- deliberately not "rewarded", which would be a strange word for an addiction, and deliberately
+    -- not "purchased", which would make it push up the price of traits they actually buy
+    acquired = "Acquired Trait"
 }
 
 local function GetTraitSource(character, traitID)
@@ -107,6 +111,55 @@ local function GetConflictingTrait(character, trait)
     end
 
     return nil
+end
+
+-- gives a character a trait at runtime, recording how they came by it. returns true only when it was
+-- genuinely new: already holding it, or holding something it conflicts with, both count as no
+function GrantCharacterTrait(character, traitID, source)
+    local trait = traitsByID[traitID]
+
+    if (!trait) then
+        return false
+    end
+
+    local traits = character:GetData("traits", {})
+
+    if (table.HasValue(traits, traitID) or GetConflictingTrait(character, trait)) then
+        return false
+    end
+
+    table.insert(traits, traitID)
+    character:SetData("traits", traits)
+    SetTraitSource(character, traitID, source or "acquired")
+
+    return true
+end
+
+-- rolled by every item in items/drugs/ after it takes effect. kept here rather than copied into ten
+-- item files, so the wording and the trait id only exist in one place
+function RollForAddiction(client, chance)
+    local character = IsValid(client) and client:GetCharacter()
+
+    if (!character or !chance or chance <= 0) then
+        return false
+    end
+
+    -- already hooked, so there's nothing left to catch
+    if (table.HasValue(character:GetData("traits", {}), "drugaddict")) then
+        return false
+    end
+
+    if (math.random(1, 100) > chance) then
+        return false
+    end
+
+    if (GrantCharacterTrait(character, "drugaddict", "acquired")) then
+        client:Notify("Something in that one stays with you. You are going to want it again.")
+
+        return true
+    end
+
+    return false
 end
 
 local conditionsByID = {}

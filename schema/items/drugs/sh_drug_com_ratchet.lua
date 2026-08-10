@@ -5,6 +5,8 @@ ITEM.category = "Drugs"
 ITEM.price = 20
 ITEM.width = 1
 ITEM.height = 1
+-- percent chance per injection of picking up the Drug Addict trait
+ITEM.addictionChance = 5
 
 ITEM.functions.Inject = {
 	name = "Inject",
@@ -18,6 +20,10 @@ ITEM.functions.Inject = {
 
 		if (ApplyCharacterCondition) then
 			ApplyCharacterCondition(character, "ratchet")
+		end
+
+		if (RollForAddiction) then
+			RollForAddiction(client, item.addictionChance)
 		end
 
 		client:EmitSound("items/medshot4.wav", 70)
