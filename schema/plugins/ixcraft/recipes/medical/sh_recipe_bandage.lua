@@ -5,6 +5,9 @@ RECIPE.category = "Medical"
 RECIPE.requirements = {
 	["craft_com_cloth"] = 1
 }
+RECIPE.skills = {
+	["firstaid"] = 1
+}
 RECIPE.results = {
 	["medical_com_bandage"] = 1
 }

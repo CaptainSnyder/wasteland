@@ -141,6 +141,21 @@ never nothing.
 `ix.item.New` when the database restores a partially-used item, so a saved half-empty pack keeps its
 real count.
 
+## Crafting skill requirements
+
+Recipe tiers map to `RECIPE.skills` levels the same way item tiers map to price:
+
+| Tier | Skill level |
+|---|---|
+| Common crafting recipes | 1-3 |
+| Uncommon crafting recipes | 4-7 |
+| Rare crafting recipes | 8-10 |
+
+The skill checked is whichever is thematically closest to the recipe (e.g. `smallarms` for ammo,
+`firstaid` for medical and drug recipes), set via `RECIPE.skills = {["smallarms"] = 1}` in the
+recipe file. `RECIPE:OnCanCraft` checks this against points the character has actually invested,
+not their attribute-derived total.
+
 ## Conventions
 
 - Every item gets a `Junkify` function, even non-junk items.
