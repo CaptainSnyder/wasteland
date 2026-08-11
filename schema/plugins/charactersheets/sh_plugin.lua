@@ -113,6 +113,21 @@ local function GetConflictingTrait(character, trait)
     return nil
 end
 
+-- returns the first trait a character holds carrying the given flag, or nil. handy where the flag's
+-- value matters and not just its presence, e.g. Made for Running's athleticsBonusPercent.
+-- defined up here rather than beside its other callers because RollForAddiction below needs it too
+local function GetTraitWithFlag(character, flag)
+    for _, tid in ipairs(character:GetData("traits", {})) do
+        local trait = traitsByID[tid]
+
+        if (trait and trait[flag]) then
+            return trait
+        end
+    end
+
+    return nil
+end
+
 -- gives a character a trait at runtime, recording how they came by it. returns true only when it was
 -- genuinely new: already holding it, or holding something it conflicts with, both count as no
 function GrantCharacterTrait(character, traitID, source)
@@ -172,7 +187,17 @@ function RollForAddiction(client, chance)
         return false
     end
 
-    if (math.random(1, 100) > chance) then
+    -- Addictive Personality doubles it, Clean Living halves it. one numeric flag rather than two
+    -- separate cases, so a future trait could scale it by anything
+    local scaling = GetTraitWithFlag(character, "addictionChanceMultiplier")
+
+    if (scaling) then
+        chance = math.floor(chance * scaling.addictionChanceMultiplier)
+    end
+
+    -- halving rounds down, so anything already at 1% becomes genuinely impossible rather than
+    -- rounding back up to a small chance
+    if (chance <= 0 or math.random(1, 100) > chance) then
         return false
     end
 
@@ -1921,20 +1946,6 @@ if (SERVER) then
             client:SetNWBool("ixSneaking", false)
         end
     end)
-end
-
--- returns the first trait a character holds carrying the given flag, or nil. handy where the flag's
--- value matters and not just its presence, e.g. Made for Running's athleticsBonusPercent
-local function GetTraitWithFlag(character, flag)
-    for _, tid in ipairs(character:GetData("traits", {})) do
-        local trait = traitsByID[tid]
-
-        if (trait and trait[flag]) then
-            return trait
-        end
-    end
-
-    return nil
 end
 
 -- Rally never affects the caller. That's the whole point of the skill: it's the one thing on the sheet

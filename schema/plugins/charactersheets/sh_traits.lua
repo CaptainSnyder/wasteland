@@ -1092,6 +1092,26 @@ PLUGIN.traits = {
         disadvantageSkills = {"kissass"}
     },
     {
+        id = "addictivepersonality",
+        name = "Addictive Personality",
+        description = "Whatever it is, you'll want it again. You've known that about yourself for a long time and it has never once stopped you.",
+        tier = 0,
+        effectText = "doubles your chance of picking up an addiction",
+        conflictsWith = {"cleanliving"},
+        -- read by RollForAddiction (charactersheets/sh_plugin.lua), not a modifier
+        addictionChanceMultiplier = 2
+    },
+    {
+        id = "cleanliving",
+        name = "Clean Living",
+        description = "You've watched what the chems do to people and decided, without much drama about it, that you'd rather not.",
+        tier = 1,
+        effectText = "halves your chance of picking up an addiction, rounded down",
+        conflictsWith = {"addictivepersonality"},
+        -- the halving floors, so a 1% source becomes 0% and can never hook you at all
+        addictionChanceMultiplier = 0.5
+    },
+    {
         id = "securedwallet",
         name = "Secured Wallet",
         description = "Inside pocket, buttoned down, and you check it more often than you'd admit. Anyone reaching for it has a harder time, and comes away with less.",
