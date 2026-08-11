@@ -5,6 +5,8 @@ ITEM.category = "Consumable"
 ITEM.price = 5
 ITEM.width = 1
 ITEM.height = 1
+-- smoked far more often than a bottle gets drunk, so kept to the lowest chance in the game
+ITEM.addictionChance = 1
 
 ITEM.functions.Smoke = {
 	name = "Smoke",
@@ -18,6 +20,10 @@ ITEM.functions.Smoke = {
 
 		if (ApplyCharacterCondition) then
 			ApplyCharacterCondition(character, "cigarette")
+		end
+
+		if (RollForAddiction) then
+			RollForAddiction(client, item.addictionChance)
 		end
 
 		client:Notify("You light up and take a long drag.")

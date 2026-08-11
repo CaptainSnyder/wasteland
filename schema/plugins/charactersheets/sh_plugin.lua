@@ -135,6 +135,29 @@ function GrantCharacterTrait(character, traitID, source)
     return true
 end
 
+-- takes a trait away and forgets how it was acquired. returns true only if they actually had it.
+-- Withdrawal needs no cleanup afterwards: it's derived from the trait on every read rather than
+-- stored, so it stops the moment the trait does
+function RemoveCharacterTrait(character, traitID)
+    local traits = character:GetData("traits", {})
+
+    for i, tid in ipairs(traits) do
+        if (tid == traitID) then
+            table.remove(traits, i)
+            character:SetData("traits", traits)
+
+            local sources = character:GetData("traitSources", {})
+
+            sources[traitID] = nil
+            character:SetData("traitSources", sources)
+
+            return true
+        end
+    end
+
+    return false
+end
+
 -- rolled by every item in items/drugs/ after it takes effect. kept here rather than copied into ten
 -- item files, so the wording and the trait id only exist in one place
 function RollForAddiction(client, chance)
@@ -2550,6 +2573,95 @@ ix.command.Add("Reassure", {
     end
 })
 
+-- weaning someone off a habit. gated behind real training rather than a lucky roll, and the cooldown
+-- sits per doctor per patient, so a clinic full of medics can each take a turn while any one of them
+-- has to wait an hour before trying the same person again
+local DETOX_SKILL_REQUIREMENT = 5
+local DETOX_DC = 15
+local DETOX_COOLDOWN = 60 * 60
+
+ix.command.Add("RemoveAddiction", {
+    description = "Attempts to break the drug addiction of whoever you're aiming at. Needs First Aid 5, a roll of 15 or better, and once an hour per patient.",
+    OnRun = function(self, client)
+        local character = client:GetCharacter()
+
+        if (!character) then
+            return
+        end
+
+        local invested = character:GetData("skills", {})["firstaid"] or 0
+
+        if (invested < DETOX_SKILL_REQUIREMENT) then
+            client:Notify(string.format(
+                "This is beyond you. It takes First Aid %d to even attempt it.", DETOX_SKILL_REQUIREMENT
+            ))
+
+            return
+        end
+
+        -- the same close-range trace the medical items use: this is hands-on work
+        local target = GetOtherTreatmentTarget(client)
+
+        if (!target) then
+            client:Notify("You aren't aiming at anyone within reach.")
+            return
+        end
+
+        local targetCharacter = target:GetCharacter()
+
+        if (!targetCharacter) then
+            client:Notify("They have no character loaded.")
+            return
+        end
+
+        if (!table.HasValue(targetCharacter:GetData("traits", {}), "drugaddict")) then
+            client:Notify(string.format("%s has no habit to break.", target:Name()))
+            return
+        end
+
+        local now = os.time()
+        local cooldowns = character:GetData("detoxCooldowns", {})
+        local targetKey = tostring(targetCharacter:GetID())
+
+        for key, expiry in pairs(cooldowns) do
+            if (expiry <= now) then
+                cooldowns[key] = nil
+            end
+        end
+
+        if ((cooldowns[targetKey] or 0) > now) then
+            client:Notify(string.format(
+                "You've done what you can for %s today. Try again in %s.",
+                target:Name(), FormatWaitTime(cooldowns[targetKey] - now)
+            ))
+
+            return
+        end
+
+        local result = PerformSkillCheck(client, "firstaid")
+
+        if (!result) then
+            return
+        end
+
+        -- set whatever the outcome, since the limit is on attempts rather than on successes
+        cooldowns[targetKey] = now + DETOX_COOLDOWN
+        character:SetData("detoxCooldowns", cooldowns)
+
+        if (result < DETOX_DC) then
+            client:Notify(string.format("You can't get %s through it. (needed %d)", target:Name(), DETOX_DC))
+            target:Notify(string.format("%s tries to walk you through it. You don't make it.", client:Name()))
+
+            return
+        end
+
+        RemoveCharacterTrait(targetCharacter, "drugaddict")
+
+        client:Notify(string.format("You get %s clean.", target:Name()))
+        target:Notify(string.format("%s gets you through it. The craving lets go.", client:Name()))
+    end
+})
+
 ix.command.Add("CharSetSkill", {
     description = "Sets a character's invested points for a skill (capped at 10).",
     privilege = "Manage Character Skills",
@@ -3029,23 +3141,11 @@ ix.command.Add("CharRemoveTrait", {
             return "Could not find that trait."
         end
 
-        local traits = target:GetData("traits", {})
-
-        for i, tid in ipairs(traits) do
-            if (tid == trait.id) then
-                table.remove(traits, i)
-                target:SetData("traits", traits)
-
-                -- clear the source too. if this was a purchased trait, that also drops the purchased
-                -- count, so their next purchase falls back to the cheaper price - which is the right
-                -- outcome, since they no longer have the trait they paid for
-                local sources = target:GetData("traitSources", {})
-
-                sources[trait.id] = nil
-                target:SetData("traitSources", sources)
-
-                return string.format("Removed the '%s' trait from %s.", trait.name, target:GetName())
-            end
+        -- shares RemoveCharacterTrait with /removeaddiction. dropping the source entry also drops the
+        -- purchased count if it was bought, so their next purchase falls back to the cheaper price -
+        -- correct, since they no longer have the trait they paid for
+        if (RemoveCharacterTrait(target, trait.id)) then
+            return string.format("Removed the '%s' trait from %s.", trait.name, target:GetName())
         end
 
         return string.format("%s doesn't have that trait.", target:GetName())

@@ -5,6 +5,8 @@ ITEM.category = "Consumable"
 ITEM.price = 5
 ITEM.width = 1
 ITEM.height = 2
+-- a bottle is a bigger dose than a cigarette, so slightly likelier to catch
+ITEM.addictionChance = 2
 
 local DRINK_SOUNDS = {
 	"item_vodka_02_drink.wav",
@@ -24,6 +26,10 @@ ITEM.functions.Drink = {
 
 		if (ApplyCharacterCondition) then
 			ApplyCharacterCondition(character, "drunk")
+		end
+
+		if (RollForAddiction) then
+			RollForAddiction(client, item.addictionChance)
 		end
 
 		client:EmitSound(DRINK_SOUNDS[math.random(#DRINK_SOUNDS)], 70)
