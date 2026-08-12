@@ -1,9 +1,0 @@
-ITEM.name = "Large Box of 10mm"
-ITEM.height = 2
-ITEM.width = 2
-ITEM.model = "models/props/cs_office/cardboard_box03.mdl"
-ITEM.ammo = "gr_10mm" -- type of the ammo
-ITEM.ammoAmount = 180 -- amount of the ammo
-ITEM.description = "A Box that contains 180 rounds of 10mm ammo."
-ITEM.price = 200
-ITEM.flag = "f"

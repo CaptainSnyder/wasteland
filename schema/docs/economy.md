@@ -130,9 +130,18 @@ small is 25, so the carton is 125 rather than 150).
 
 | Tier | Small | Carton (x6) | Calibers |
 |---|---|---|---|
-| Common | 25 | 125 | 9mm, 12g, .38, 5.56, 5mm |
-| Uncommon | 40 | 200 | 10mm, .357, .308, .44, .45 |
-| Rare | 65 | 325 | .50 MG, MFC, 12.7mm, Energy Charge |
+| Common | 25 | 125 | 9mm, 12g, .38, 5.56, 7.62 |
+| Uncommon | 40 | 200 | .357, .308, .44, .45 |
+| Rare | 65 | 325 | Energy Charge |
+
+**Every caliber here has a weapon that fires it, with one deliberate exception.** 5mm, 10mm, .50 MG,
+12.7mm and Microfusion Cells were removed — they were inherited from the Fallout weapon lineup and
+nothing in the current packs chambers them, so they were pure dead loot. `.357` is kept despite
+having no weapon yet, on purpose.
+
+**7.62 and .308 are not the same round.** `gr_762` is 7.62x39, the AK cartridge — the AKM, RPK and
+SKS. `gr_308` is 7.62x51 NATO, a far heavier round for the battle rifles and bolt guns. They were
+briefly folded together, which is why 7.62 appeared to be missing.
 
 **Energy Charge** is the exception to the two-size rule — it exists only at one size (100 charges,
 65). It feeds every weapon in the `TFA Generic Wasteland` pack, whose ammo type `wl_energycharge` is
