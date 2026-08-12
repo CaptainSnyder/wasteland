@@ -113,6 +113,18 @@ a carton), so buying in bulk stays worthwhile.
 Priced by pack size. **Ammo is intentionally not junkifiable** — none of the ammo items define a
 `Junkify` function, and new ones shouldn't either.
 
+### Ammo types
+
+`ITEM.ammo` must name a **registered ammo type**, not an entity class. Every caliber here is
+registered by the `TFA Generic Roleplay Ammo` addon under a `gr_` prefix — `gr_9mm`, `gr_556`,
+`gr_308` and so on — which also provides the matching spawnable pickups.
+
+This distinction bit the schema once already. The items used to point at `tfa_9mm_ammo`,
+`tfa_45_ammo`, `item_ammo_357` and similar, which are **entity class names** from the Fallout
+Weapons Project, not ammo types. `GiveAmmo` fails silently on an unregistered type — no error, no
+ammo — so every ammo item in the schema handed out nothing. If you add a caliber, add its row to
+that addon first and use the `gr_` name here.
+
 The x6 carton is priced as "buy 5, get 1 free" rather than a straight 6x multiple (e.g. common
 small is 25, so the carton is 125 rather than 150).
 
