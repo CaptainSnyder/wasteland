@@ -122,9 +122,14 @@ small is 25, so the carton is 125 rather than 150).
 | Uncommon | 40 | 200 | 10mm, .357, .308, .44, .45 |
 | Rare | 65 | 325 | .50 MG, MFC, 12.7mm, Energy Charge |
 
-**Energy Charge** is the exception to the two-size rule — it exists only at the small size (30
-charges, 65). It feeds every weapon in the `TFA Generic Wasteland` pack, whose ammo type
-`wl_energycharge` is registered by that addon rather than by the schema.
+**Energy Charge** is the exception to the two-size rule — it exists only at one size (100 charges,
+65). It feeds every weapon in the `TFA Generic Wasteland` pack, whose ammo type `wl_energycharge` is
+registered by that addon rather than by the schema.
+
+A charge is not a shot. Every one of those weapons holds 100 charges, but draws per shot in
+proportion to its wattage — one for the 20 Watt up to four for the 80 Watt — so a single cell buys
+anywhere from 100 shots down to 25. Two attachments shift that further: the Recycling Chip halves
+the draw for 30% less damage, the Overcharge Chip doubles it for 50% more.
 
 ## Charge-based items
 
