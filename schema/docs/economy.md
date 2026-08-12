@@ -69,7 +69,8 @@ only the weapons that filled them have changed.
 **There are currently no weapon items in the schema.** The Fallout Weapons Project set that used to
 occupy these tiers was removed when that addon was dropped, so `items/weapons/` no longer exists.
 The replacement set lives in `addons/TFA Generic Wasteland` as SWEPs but has not been given schema
-items yet.
+items yet. All eight of them are energy weapons firing Energy Charges, and all spawn with an empty
+magazine, so a charge has to be found before any of them does anything.
 
 ### Sidearms
 
@@ -119,7 +120,11 @@ small is 25, so the carton is 125 rather than 150).
 |---|---|---|---|
 | Common | 25 | 125 | 9mm, 12g, .38, 5.56, 5mm |
 | Uncommon | 40 | 200 | 10mm, .357, .308, .44, .45 |
-| Rare | 65 | 325 | .50 MG, MFC, 12.7mm |
+| Rare | 65 | 325 | .50 MG, MFC, 12.7mm, Energy Charge |
+
+**Energy Charge** is the exception to the two-size rule — it exists only at the small size (30
+charges, 65). It feeds every weapon in the `TFA Generic Wasteland` pack, whose ammo type
+`wl_energycharge` is registered by that addon rather than by the schema.
 
 ## Charge-based items
 
