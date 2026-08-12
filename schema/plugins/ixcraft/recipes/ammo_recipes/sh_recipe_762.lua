@@ -1,19 +1,19 @@
-RECIPE.name = "12.7mm Ammo"
-RECIPE.description = "Craft some 12.7mm Ammo."
-RECIPE.model = "models/illusion/fwp/127ammobox.mdl"
+RECIPE.name = "7.62 Ammo"
+RECIPE.description = "Craft some 7.62 Ammo."
+RECIPE.model = "models/mosi/fallout4/ammo/308.mdl"
 RECIPE.category = "Ammunition"
 RECIPE.requirements = {
-	["craft_uncom_casings"] = 4,
-	["craft_uncom_lead"] = 3
+	["craft_uncom_casings"] = 2,
+	["craft_uncom_lead"] = 1
 }
 RECIPE.skills = {
-	["smallarms"] = 7
+	["repair"] = 2
 }
 RECIPE.results = {
-	["ammo_rare_127mm_small"] = 1
+	["ammo_com_762_small"] = 1
 }
 RECIPE.tools = {
-	"craft_rare_toolkit"
+	"craft_com_toolkit"
 }
 
 

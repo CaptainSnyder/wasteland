@@ -143,6 +143,26 @@ having no weapon yet, on purpose.
 SKS. `gr_308` is 7.62x51 NATO, a far heavier round for the battle rifles and bolt guns. They were
 briefly folded together, which is why 7.62 appeared to be missing.
 
+### Crafting ammo
+
+**Repair gates every ammo recipe**, not the combat skill that fires the round. Loading cartridges is
+bench work; being good with a rifle says nothing about whether you can press one. Rocket ammunition
+for the AT4 and RPG-7 is the exception and belongs to **Explosives** — no such items or recipes
+exist yet, but that is where they go when they do.
+
+The old per-caliber combat gates carried a difficulty curve, and moving to a single skill kept it.
+The `repair` level required is still set by the caliber, not flattened:
+
+| Repair | Calibers |
+|---|---|
+| 1 | 9mm, .38 |
+| 2 | 12g, 5.56, 7.62 |
+| 4 | .45 |
+| 5 | .357, .44 |
+| 6 | .308 |
+
+Energy Charges have no recipe. They are the one ammo type that can only be found or bought.
+
 **Energy Charge** is the exception to the two-size rule — it exists only at one size (100 charges,
 65). It feeds every weapon in the `TFA Generic Wasteland` pack, whose ammo type `wl_energycharge` is
 registered by that addon rather than by the schema.

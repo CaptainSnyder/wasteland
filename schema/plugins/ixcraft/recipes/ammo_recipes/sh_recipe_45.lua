@@ -7,7 +7,7 @@ RECIPE.requirements = {
 	["craft_uncom_lead"] = 2
 }
 RECIPE.skills = {
-	["smallarms"] = 4
+	["repair"] = 4
 }
 RECIPE.results = {
 	["ammo_uncom_45_small"] = 1
