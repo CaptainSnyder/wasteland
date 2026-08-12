@@ -63,23 +63,29 @@ Anything that has no crafting use at all.
 
 ## Weapons
 
-Split into Sidearms and Primaries, each with their own tiers.
+Split into Sidearms and Primaries, each with their own tiers. The tier numbers below still stand —
+only the weapons that filled them have changed.
+
+**There are currently no weapon items in the schema.** The Fallout Weapons Project set that used to
+occupy these tiers was removed when that addon was dropped, so `items/weapons/` no longer exists.
+The replacement set lives in `addons/TFA Generic Wasteland` as SWEPs but has not been given schema
+items yet.
 
 ### Sidearms
 
-| Tier | Price | Junkify | Examples |
-|---|---|---|---|
-| Common | 250 | 25-75 | 9mm Pistol, 10mm Pistol, Pipe Revolver |
-| Uncommon | 500 | 50-200 | .44 Revolver, Laser Pistol |
-| Rare | 1,000 | 100-400 | 12.7mm Pistol |
+| Tier | Price | Junkify |
+|---|---|---|
+| Common | 250 | 25-75 |
+| Uncommon | 500 | 50-200 |
+| Rare | 1,000 | 100-400 |
 
 ### Primaries
 
-| Tier | Price | Junkify | Examples |
-|---|---|---|---|
-| Common | 400 | 25-100 | 9mm SMG, Caravan Shotgun, Cowboy Repeater, Handmade Rifle, Pipe Bolt/Semi, Varmint Rifle |
-| Uncommon | 850 | 75-300 | 10mm SMG, Assault Carbine, Combat Rifle, Hunting Rifle, Hunting Shotgun, Laser Rifle, Marksman Rifle, Submachine Gun |
-| Rare | 1,500 | 125-500 | Laser Sniper, Anti-Material Rifle, Combat Shotgun |
+| Tier | Price | Junkify |
+|---|---|---|
+| Common | 400 | 25-100 |
+| Uncommon | 850 | 75-300 |
+| Rare | 1,500 | 125-500 |
 
 ## Cigarettes (own scale)
 
