@@ -59,11 +59,13 @@ PLUGIN.charSetupStages = {
                 id = "darwinvillage",
                 name = "Darwin Village",
                 description = "You grew up in the ruins beneath Darwin, an old government research facility where a geneticist named Finster spent his life reshaping the descendants of his own staff into what he believed would be the next humanity. He didn't survive the Rangers who eventually put a stop to it, but the mutations he left behind did - carried forward through generations of the quiet, secretive community his followers built in the wreckage, guarding what remained of his research for a wasteland they were still waiting to trust with it. You were raised inside that isolation, taught old-world science alongside the understanding that you weren't quite like people from outside those walls. Then came the plague - a disease released when someone broke into what Finster had left sealed away, one that stole reason and left rage behind in its place. You were cured before it finished with you. The sickness is gone. What it never touched - the thing your body already was before any of that happened - never left, and it isn't something a cure was ever going to fix.",
-                attributes = {{target = "intelligence", amount = 2}, {target = "charisma", amount = -1}},
+                attributes = {{target = "intelligence", amount = 2}},
                 skills = {{target = "nerdstuff", amount = 2}},
-                -- Darwin's population has been visibly mutated since long before the plague; the cure
-                -- only ever addressed the disease, so every survivor of the village carries this trait
-                traitID = "mutant"
+                -- mutant: Darwin's population has been visibly mutated since long before the plague;
+                -- the cure only ever addressed the disease, so every survivor carries this trait.
+                -- offputting: the charisma penalty, as a trait rather than a bare attribute number -
+                -- same tier 0 trait Broke Under Pressure grants elsewhere in this file
+                traitIDs = {"mutant", "offputting"}
             }
         }
     },
