@@ -27,6 +27,12 @@ local traitList = PLUGIN.traits
 local MAX_PURCHASED_TRAITS = 10
 local MAX_TRAIT_POINTS = 0
 
+-- flat cost to remove any Tier 0 or Tier 1 trait you currently hold, regardless of how you got it -
+-- origin, purchased, rewarded or acquired all count. removing a "purchased" trait also lowers
+-- GetPurchasedTraitCount, since that counts live traits rather than a running total, so it can
+-- undo its own price escalation on the next purchase
+local TRAIT_REMOVAL_COST = 1
+
 for i = 1, MAX_PURCHASED_TRAITS do
     MAX_TRAIT_POINTS = MAX_TRAIT_POINTS + (skillLevelCost[i] or 0)
 end
@@ -468,6 +474,7 @@ if (SERVER) then
     util.AddNetworkString("ixPickpocketDismiss")
     util.AddNetworkString("ixSneakSpotted")
     util.AddNetworkString("ixCharSheetBuyTrait")
+    util.AddNetworkString("ixCharSheetRemoveTrait")
     util.AddNetworkString("ixOpenConditionList")
     util.AddNetworkString("ixOpenHealthConditionList")
     util.AddNetworkString("ixOpenCharSetup")
@@ -3073,13 +3080,28 @@ if (SERVER) then
             end
         end
 
+        -- separate from the buy list above: this is only what the character actually has, filtered to
+        -- Tier 0/1, since those are the only tiers cheap enough to walk back for a single point
+        local removable = {}
+
+        for _, tid in ipairs(character:GetData("traits", {})) do
+            local trait = traitsByID[tid]
+            local tier = trait and (trait.tier or 1)
+
+            if (trait and (tier == 0 or tier == 1)) then
+                removable[#removable + 1] = {id = trait.id}
+            end
+        end
+
         net.Start("ixOpenTraitPurchase")
             net.WriteTable({
                 traits = available,
+                removable = removable,
                 points = character:GetData("traitPoints", 1),
                 purchased = GetPurchasedTraitCount(character),
                 maxPurchased = MAX_PURCHASED_TRAITS,
-                nextCost = GetNextTraitCost(character)
+                nextCost = GetNextTraitCost(character),
+                removalCost = TRAIT_REMOVAL_COST
             })
         net.Send(client)
     end
@@ -3577,6 +3599,54 @@ if (SERVER) then
         ))
 
         -- refresh both the shop (prices have gone up) and any open sheet behind it
+        SendTraitPurchaseList(client, character)
+        SendCharacterSheet(client, character)
+    end)
+
+    net.Receive("ixCharSheetRemoveTrait", function(length, client)
+        local character = client:GetCharacter()
+
+        if (!character) then
+            return
+        end
+
+        local traitID = net.ReadString()
+        local trait = traitsByID[traitID]
+        local tier = trait and (trait.tier or 1)
+
+        -- re-checked here rather than trusting the client sent something it was actually shown, same
+        -- as the buy handler above
+        if (!trait or !(tier == 0 or tier == 1)) then
+            client:Notify("Only Tier 0 or Tier 1 traits can be removed this way.")
+            return
+        end
+
+        local traits = character:GetData("traits", {})
+
+        if (!table.HasValue(traits, traitID)) then
+            client:Notify("You don't have that trait.")
+            return
+        end
+
+        local points = character:GetData("traitPoints", 1)
+
+        if (points < TRAIT_REMOVAL_COST) then
+            client:Notify(string.format(
+                "Removing '%s' costs %d trait point(s) and you have %d.", trait.name, TRAIT_REMOVAL_COST, points
+            ))
+
+            return
+        end
+
+        RemoveCharacterTrait(character, traitID)
+        character:SetData("traitPoints", points - TRAIT_REMOVAL_COST)
+
+        client:Notify(string.format(
+            "You removed '%s' for %d trait point(s).", trait.name, TRAIT_REMOVAL_COST
+        ))
+
+        -- refresh both the shop (the removed trait may now be missing a conflict, freeing up a
+        -- purchase) and any open sheet behind it
         SendTraitPurchaseList(client, character)
         SendCharacterSheet(client, character)
     end)
