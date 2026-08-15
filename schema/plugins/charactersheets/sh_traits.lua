@@ -1364,6 +1364,13 @@ PLUGIN.traits = {
             {type = "skill", target = "gambling", amount = 2},
             {type = "skill", target = "barter", amount = -1}
         }
+    },
+    {
+        id = "mutant",
+        name = "Mutant",
+        description = "Whatever cure you were given stopped the disease. It didn't undo what the disease had already done to you. You walked out cured and permanently changed - the mutation is yours to describe.",
+        tier = 3
+        -- purely a roleplay trait, no modifiers, no advantage/disadvantage
     }
 }
 

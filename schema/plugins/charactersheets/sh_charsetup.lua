@@ -54,6 +54,16 @@ PLUGIN.charSetupStages = {
                 name = "Slavery",
                 description = "You were born into slavery, plain and simple, and there's no dressing that up into something easier to hear. From as early as you can remember, your life belonged to someone else - your labor, your time, your body all spoken for before you ever had a say in the matter. You learned to work through exhaustion because the alternative was worse, and you learned to read a master's mood before they'd even finished walking into the room, because getting that wrong cost more than it was ever worth. It built a kind of toughness into you that nobody should have to earn that way, and an instinct for watching everyone around you that's never really switched off. Whatever freedom you've got now, you know exactly what it's worth, because you remember what it was like without it.",
                 attributes = {{target = "strength", amount = 2}, {target = "awareness", amount = 1}}
+            },
+            {
+                id = "darwinvillage",
+                name = "Darwin Village",
+                description = "You grew up in the ruins beneath Darwin, an old government research facility where a geneticist named Finster spent his life reshaping the descendants of his own staff into what he believed would be the next humanity. He didn't survive the Rangers who eventually put a stop to it, but the mutations he left behind did - carried forward through generations of the quiet, secretive community his followers built in the wreckage, guarding what remained of his research for a wasteland they were still waiting to trust with it. You were raised inside that isolation, taught old-world science alongside the understanding that you weren't quite like people from outside those walls. Then came the plague - a disease released when someone broke into what Finster had left sealed away, one that stole reason and left rage behind in its place. You were cured before it finished with you. The sickness is gone. What it never touched - the thing your body already was before any of that happened - never left, and it isn't something a cure was ever going to fix.",
+                attributes = {{target = "intelligence", amount = 2}, {target = "charisma", amount = -1}},
+                skills = {{target = "nerdstuff", amount = 2}},
+                -- Darwin's population has been visibly mutated since long before the plague; the cure
+                -- only ever addressed the disease, so every survivor of the village carries this trait
+                traitID = "mutant"
             }
         }
     },
