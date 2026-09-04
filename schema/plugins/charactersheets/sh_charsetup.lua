@@ -66,6 +66,14 @@ PLUGIN.charSetupStages = {
                 -- offputting: the charisma penalty, as a trait rather than a bare attribute number -
                 -- same tier 0 trait Broke Under Pressure grants elsewhere in this file
                 traitIDs = {"mutant", "offputting"}
+            },
+            {
+                id = "generic",
+                name = "Nothing Worth Mentioning",
+                description = "Not everything about you needs a story behind it. Whatever this was, it didn't leave much of a mark - you'd rather put the time toward getting good at something useful than dress up something ordinary as more than it was.",
+                -- deliberately no attributes, skills, or trait - a flat, flexible pool instead of any
+                -- fixed narrative payoff, present as an option on every stage in this wizard
+                skillPoints = 2
             }
         }
     },
@@ -137,6 +145,12 @@ PLUGIN.charSetupStages = {
                 attributes = {{target = "strength", amount = 1}},
                 skills = {{target = "survival", amount = 1}},
                 traitID = "unlucky"
+            },
+            {
+                id = "generic",
+                name = "Nothing Worth Mentioning",
+                description = "Not everything about you needs a story behind it. Whatever this was, it didn't leave much of a mark - you'd rather put the time toward getting good at something useful than dress up something ordinary as more than it was.",
+                skillPoints = 2
             }
         }
     },
@@ -214,6 +228,12 @@ PLUGIN.charSetupStages = {
                 name = "First Patrol",
                 description = "You'd been drilling with the Rangers for what felt like forever when they finally let you come along on an actual patrol instead of another training exercise, and you spent every mile of it terrified you'd freeze up the second something real happened. Something real did happen, eventually, and you didn't freeze - you did exactly what you'd been trained to do, and the Ranger walking point clapped you on the shoulder afterward like you'd actually earned it. It wasn't your star, not even close, but it was the first time anyone treated you like you might actually make it that far. You've been chasing that feeling ever since.",
                 attributes = {{target = "awareness", amount = 2}, {target = "coordination", amount = 1}}
+            },
+            {
+                id = "generic",
+                name = "Nothing Worth Mentioning",
+                description = "Not everything about you needs a story behind it. Whatever this was, it didn't leave much of a mark - you'd rather put the time toward getting good at something useful than dress up something ordinary as more than it was.",
+                skillPoints = 2
             }
         }
     },
@@ -290,6 +310,12 @@ PLUGIN.charSetupStages = {
                 bonusSkill = {target = "survival", amount = 2},
                 traitID = "unbroken",
                 items = {} -- TODO: basic supplies and gear from the Rangers
+            },
+            {
+                id = "generic",
+                name = "Nothing Worth Mentioning",
+                description = "Not everything about you needs a story behind it. Whatever this was, it didn't leave much of a mark - you'd rather put the time toward getting good at something useful than dress up something ordinary as more than it was.",
+                skillPoints = 2
             }
         }
     },
@@ -382,6 +408,12 @@ PLUGIN.charSetupStages = {
                 skills = {{target = "smallarms", amount = 1}, {target = "leadership", amount = 1}},
                 traitID = "rangertraining",
                 items = {} -- TODO: starting item(s) for this option
+            },
+            {
+                id = "generic",
+                name = "Nothing Worth Mentioning",
+                description = "Not everything about you needs a story behind it. Whatever this was, it didn't leave much of a mark - you'd rather put the time toward getting good at something useful than dress up something ordinary as more than it was.",
+                skillPoints = 2
             }
         }
     },
@@ -445,6 +477,12 @@ PLUGIN.charSetupStages = {
                 description = "Why get close or reload at all, when you can just throw the problem away from you entirely? You've gotten genuinely good at putting a grenade, knife, or whatever else you're carrying exactly where it needs to go, at exactly the right moment. It's a different kind of precision than aiming down a sight, and you've made it your own.",
                 skills = {{target = "throwing", amount = 2}},
                 items = {} -- TODO: starting throwables (act as their own ammo)
+            },
+            {
+                id = "generic",
+                name = "Nothing Worth Mentioning",
+                description = "Not everything about you needs a story behind it. Whatever this was, it didn't leave much of a mark - you'd rather put the time toward getting good at something useful than dress up something ordinary as more than it was.",
+                skillPoints = 2
             }
         }
     }

@@ -2950,6 +2950,7 @@ if (SERVER) then
         local choices = net.ReadTable()
         local skills = character:GetData("skills", {})
         local traits = character:GetData("traits", {})
+        local skillPoints = character:GetData("skillPoints", 8)
 
         for _, stage in ipairs(charSetupStages) do
             local optionID = choices[stage.id]
@@ -2976,6 +2977,13 @@ if (SERVER) then
                     skills[option.bonusSkill.target] = math.min((skills[option.bonusSkill.target] or 0) + option.bonusSkill.amount, 10)
                 end
 
+                -- free-form points added to the same pool ixCharSheetSpendSkill draws from, rather
+                -- than being pre-allocated to any particular skill - used by the generic "no fixed
+                -- background" option every stage carries
+                if (option.skillPoints) then
+                    skillPoints = skillPoints + option.skillPoints
+                end
+
                 -- most options grant a single trait via traitID; a few (e.g. Branded) grant more than
                 -- one via traitIDs - both are supported here so existing single-trait options don't need to change
                 if (option.traitID and !table.HasValue(traits, option.traitID)) then
@@ -2999,6 +3007,7 @@ if (SERVER) then
 
         character:SetData("skills", skills)
         character:SetData("traits", traits)
+        character:SetData("skillPoints", skillPoints)
 
         -- everything the setup wizard hands out is an origin trait, so none of it counts toward the
         -- escalating cost of *bought* traits later on
