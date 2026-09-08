@@ -6,6 +6,9 @@ Schema.name = "Wasteland"
 Schema.author = "Captain Snyder"
 Schema.description = "Set after the original 1988 Wasteland"
 
+-- bumped by hand whenever a notable batch of changes goes out, formatted v_MMDD e.g. v_0908 for Sept 8
+Schema.version = "v_0908"
+
 -- currency: displayed everywhere Helix shows money (HUD, inventory, chat, /pay, etc.) as e.g. "50 Scrap"
 -- instead of the default "$50 dollars" - keeps the existing drop-model default, just renames it
 ix.currency.Set("", "Scrap", "Scrap", ix.currency.model)
